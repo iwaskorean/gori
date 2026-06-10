@@ -17,7 +17,7 @@ import {
   writeSession,
 } from "./session.js";
 import { err, ok } from "./types.js";
-import type { Ctx, Meta, Result, Side, TaskStatus } from "./types.js";
+import type { Ctx, GoriError, Meta, Result, Side, TaskStatus } from "./types.js";
 
 const GC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const TXT = ".txt";
@@ -36,6 +36,25 @@ const readAllMeta = async (goriHome: string): Promise<Meta[]> => {
   const ids = await listTaskIds(goriHome);
   const metas = await Promise.all(ids.map((id) => readMeta(goriHome, id)));
   return metas.filter((m): m is Meta => m !== null);
+};
+
+/**
+ * Read-modify-write an existing task under its lock. Pre-checks existence so the
+ * task directory (and thus its lockfile) exists, re-checks inside the lock, and
+ * yields `notFound` when the task is missing. Shared by link, close, and reopen.
+ */
+const withExistingTask = async <T>(
+  goriHome: string,
+  taskId: string,
+  notFound: GoriError,
+  fn: (meta: Meta) => Promise<Result<T>>,
+): Promise<Result<T>> => {
+  if (!(await readMeta(goriHome, taskId))) return { ok: false, error: notFound };
+  return withTaskLock(goriHome, taskId, async () => {
+    const meta = await readMeta(goriHome, taskId);
+    if (!meta) return { ok: false, error: notFound };
+    return fn(meta);
+  });
 };
 
 // ---------- idle GC: drop stale, closed, or dangling session pointers ----------
@@ -141,35 +160,36 @@ export const link = async (
   ctx: Ctx,
   input: { taskId: string },
   now: Date = new Date(),
-): Promise<Result<{ taskId: string }>> => {
-  // Pre-check existence so the task directory (and thus its lockfile) exists.
-  if (!(await readMeta(ctx.goriHome, input.taskId))) {
-    return err("TASK_NOT_FOUND", `no such task: ${input.taskId}`);
-  }
-  return withTaskLock(ctx.goriHome, input.taskId, async () => {
-    const session = await readSession(ctx.goriHome, ctx.sessionKey);
-    const meta = await readMeta(ctx.goriHome, input.taskId);
-    if (!meta) return err("TASK_NOT_FOUND", `no such task: ${input.taskId}`);
-    if (meta.pairB.dir !== null) {
-      return err("NO_PAIRABLE_TASK", "task is already paired");
-    }
-    if (session?.taskId === meta.taskId && session.side === "pair-A") {
-      return err("NO_PAIRABLE_TASK", "cannot pair with a task this session started");
-    }
-    const at = formatDisplay(now);
-    await writeMeta(ctx.goriHome, {
-      ...meta,
-      pairB: { dir: ctx.cwd, joinedAt: at },
-      lastModifiedBy: "pair-B",
-      lastModifiedAt: at,
-    });
-    await writeSession(ctx.goriHome, ctx.sessionKey, {
-      taskId: meta.taskId,
-      side: "pair-B",
-    });
-    return ok({ taskId: meta.taskId });
-  });
-};
+): Promise<Result<{ taskId: string }>> =>
+  withExistingTask(
+    ctx.goriHome,
+    input.taskId,
+    { code: "TASK_NOT_FOUND", message: `no such task: ${input.taskId}` },
+    async (meta) => {
+      const session = await readSession(ctx.goriHome, ctx.sessionKey);
+      if (meta.pairB.dir !== null) {
+        return err("NO_PAIRABLE_TASK", "task is already paired");
+      }
+      if (session?.taskId === meta.taskId && session.side === "pair-A") {
+        return err(
+          "NO_PAIRABLE_TASK",
+          "cannot pair with a task this session started",
+        );
+      }
+      const at = formatDisplay(now);
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        pairB: { dir: ctx.cwd, joinedAt: at },
+        lastModifiedBy: "pair-B",
+        lastModifiedAt: at,
+      });
+      await writeSession(ctx.goriHome, ctx.sessionKey, {
+        taskId: meta.taskId,
+        side: "pair-B",
+      });
+      return ok({ taskId: meta.taskId });
+    },
+  );
 
 // ---------- attach (reconnect / switch tasks) ----------
 
@@ -261,6 +281,68 @@ export const detach = async (
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   await clearSession(ctx.goriHome, ctx.sessionKey);
   return ok({ taskId: binding?.taskId ?? null });
+};
+
+// ---------- close / reopen (lifecycle) ----------
+
+/** Mark the active task closed. Leaves the session pointer for idle GC to drop. */
+export const close = async (
+  ctx: Ctx,
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string }>> => {
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to close");
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      if (meta.status === "closed") {
+        return err("ALREADY_CLOSED", "task is already closed");
+      }
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        status: "closed",
+        lastModifiedBy: binding.side,
+        lastModifiedAt: formatDisplay(now),
+      });
+      return ok({ taskId: meta.taskId });
+    },
+  );
+};
+
+/** Reopen a closed task by id, or the session's lingering pointer when none is given. */
+export const reopen = async (
+  ctx: Ctx,
+  input: { taskId?: string },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string; reattach: boolean }>> => {
+  const session = await readSession(ctx.goriHome, ctx.sessionKey);
+  const targetId = input.taskId ?? session?.taskId;
+  if (!targetId) {
+    return err("NO_ACTIVE_TASK", "no task to reopen; specify a task id");
+  }
+  return withExistingTask(
+    ctx.goriHome,
+    targetId,
+    { code: "TASK_NOT_FOUND", message: `no such task: ${targetId}` },
+    async (meta) => {
+      if (meta.status === "in-progress") {
+        return err("ALREADY_OPEN", "task is already in progress");
+      }
+      // Attribute the change to this session only when it is bound to the task;
+      // an unbound reopener leaves the last-modified side untouched.
+      const reopenerSide: Side | null =
+        session && session.taskId === targetId ? session.side : null;
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        status: "in-progress",
+        lastModifiedBy: reopenerSide ?? meta.lastModifiedBy,
+        lastModifiedAt: formatDisplay(now),
+      });
+      return ok({ taskId: targetId, reattach: reopenerSide === null });
+    },
+  );
 };
 
 // ---------- list ----------

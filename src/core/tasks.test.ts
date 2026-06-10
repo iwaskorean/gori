@@ -7,11 +7,13 @@ import { readSession, sessionFilePath, writeSession } from "./session.js";
 import {
   attach,
   attachCandidates,
+  close,
   create,
   detach,
   link,
   linkCandidates,
   list,
+  reopen,
   status,
 } from "./tasks.js";
 import type { Ctx, Meta, Result } from "./types.js";
@@ -226,6 +228,71 @@ describe("attach (reconnect / switch tasks)", () => {
     expect(unwrap(await attachCandidates(probe)).candidates[0]?.side).toBe(
       "ambiguous",
     );
+  });
+});
+
+describe("close / reopen (lifecycle)", () => {
+  it("closes the active task but leaves the session pointer for GC", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    expect(unwrap(await close(A, T2)).taskId).toBe(taskId);
+
+    const meta = await readMeta(home, taskId);
+    expect(meta?.status).toBe("closed");
+    expect(meta?.lastModifiedBy).toBe("pair-A");
+    expect(meta?.lastModifiedAt).toBe("2026-01-01 10:00:05");
+    // the pointer is not cleared here; idle GC drops it on the next list/status
+    expect(await readSession(home, "keyA")).toEqual({ taskId, side: "pair-A" });
+  });
+
+  it("rejects close when there is no active task", async () => {
+    expect(errorOf(await close(C, T1)).code).toBe("NO_ACTIVE_TASK");
+  });
+
+  it("rejects closing an already-closed task", async () => {
+    await create(A, { keyword: "x" }, T1);
+    await close(A, T2);
+    expect(errorOf(await close(A, T3)).code).toBe("ALREADY_CLOSED");
+  });
+
+  it("reopens a closed task by id", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await close(A, T2);
+    const result = unwrap(await reopen(A, { taskId }, T3));
+    expect(result.taskId).toBe(taskId);
+    expect(result.reattach).toBe(false); // A still points to it
+    expect((await readMeta(home, taskId))?.status).toBe("in-progress");
+  });
+
+  it("reopens using the session pointer when no id is given", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await close(A, T2);
+    const result = unwrap(await reopen(A, {}, T3));
+    expect(result.taskId).toBe(taskId);
+    expect(result.reattach).toBe(false);
+  });
+
+  it("flags reattach when reopening a task this session is not bound to", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await close(A, T2);
+    const result = unwrap(await reopen(C, { taskId }, T3));
+    expect(result.reattach).toBe(true);
+    // an unbound reopener does not overwrite the last-modified side
+    expect((await readMeta(home, taskId))?.lastModifiedBy).toBe("pair-A");
+  });
+
+  it("rejects reopening a task that is already in progress", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    expect(errorOf(await reopen(A, { taskId }, T2)).code).toBe("ALREADY_OPEN");
+  });
+
+  it("rejects reopening a non-existent task", async () => {
+    expect(
+      errorOf(await reopen(A, { taskId: "ghost_20260101-000000" }, T1)).code,
+    ).toBe("TASK_NOT_FOUND");
+  });
+
+  it("rejects reopen with neither an id nor a session pointer", async () => {
+    expect(errorOf(await reopen(C, {}, T1)).code).toBe("NO_ACTIVE_TASK");
   });
 });
 
