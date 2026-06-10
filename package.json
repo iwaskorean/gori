@@ -1,0 +1,31 @@
+{
+  "name": "gori",
+  "version": "0.0.0",
+  "description": "두 AI 코딩 세션을 실시간으로 잇는 페어링 브리지",
+  "type": "module",
+  "bin": {
+    "gori": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/cli/index.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  }
+}
