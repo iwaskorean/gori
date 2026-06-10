@@ -1,8 +1,8 @@
-import { mkdtemp, rm, utimes } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readMeta, writeMeta } from "./store.js";
+import { notePath, readMeta, writeMeta } from "./store.js";
 import { readSession, sessionFilePath, writeSession } from "./session.js";
 import {
   attach,
@@ -13,6 +13,7 @@ import {
   link,
   linkCandidates,
   list,
+  log,
   reopen,
   status,
 } from "./tasks.js";
@@ -293,6 +294,85 @@ describe("close / reopen (lifecycle)", () => {
 
   it("rejects reopen with neither an id nor a session pointer", async () => {
     expect(errorOf(await reopen(C, {}, T1)).code).toBe("NO_ACTIVE_TASK");
+  });
+});
+
+describe("log (note channel)", () => {
+  const readNote = (taskId: string): Promise<string> =>
+    readFile(notePath(home, taskId), "utf8");
+
+  it("creates note.md with a timestamped header and body on first log", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    const result = unwrap(await log(A, { message: "first entry" }, T2));
+    expect(result.taskId).toBe(taskId);
+    expect(result.suggestPromotion).toBe(false);
+    expect(await readNote(taskId)).toBe(
+      "## 2026-01-01 10:00:05 [pair-A]\n\nfirst entry\n",
+    );
+  });
+
+  it("preserves a multi-line message", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "line one\nline two" }, T2);
+    expect(await readNote(taskId)).toContain("line one\nline two");
+  });
+
+  it("appends a second block separated by a blank line", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await link(B, { taskId }, T2);
+    await log(A, { message: "from A" }, T2);
+    await log(B, { message: "from B" }, T3);
+
+    const note = await readNote(taskId);
+    expect(note).toBe(
+      "## 2026-01-01 10:00:05 [pair-A]\n\nfrom A\n" +
+        "\n## 2026-01-01 10:01:00 [pair-B]\n\nfrom B\n",
+    );
+    expect(note.match(/^## /gm)).toHaveLength(2);
+  });
+
+  it("updates meta last-modified to the logging side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await link(B, { taskId }, T2); // last modified by B
+    await log(A, { message: "hi" }, T3); // now A
+    const meta = await readMeta(home, taskId);
+    expect(meta?.lastModifiedBy).toBe("pair-A");
+    expect(meta?.lastModifiedAt).toBe("2026-01-01 10:01:00");
+  });
+
+  it("touches the session to mark activity", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    const old = new Date(T1.getTime() - 60_000);
+    await utimes(sessionFilePath(home, "keyA"), old, old);
+    const before = (await stat(sessionFilePath(home, "keyA"))).mtimeMs;
+    await log(A, { message: "hi" }, T2);
+    const after = (await stat(sessionFilePath(home, "keyA"))).mtimeMs;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it("rejects a blank message", async () => {
+    await create(A, { keyword: "x" }, T1);
+    expect(errorOf(await log(A, { message: "   " }, T2)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects logging with no active task", async () => {
+    expect(errorOf(await log(C, { message: "hi" }, T1)).code).toBe(
+      "NO_ACTIVE_TASK",
+    );
+  });
+
+  it("flags suggestPromotion once the note exceeds the line threshold", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    expect(unwrap(await log(A, { message: "short" }, T2)).suggestPromotion).toBe(
+      false,
+    );
+
+    const long = Array.from({ length: 31 }, (_, i) => `line ${i}`).join("\n");
+    expect(unwrap(await log(A, { message: long }, T3)).suggestPromotion).toBe(
+      true,
+    );
   });
 });
 

@@ -129,6 +129,35 @@ export const writeMeta = async (goriHome: string, meta: Meta): Promise<void> => 
   await writeFileAtomic(metaPath(goriHome, meta.taskId), metaToYaml(meta));
 };
 
+// ---------- note read/write ----------
+
+export const notePath = (goriHome: string, taskId: string): string =>
+  join(taskDir(goriHome, taskId), "note.md");
+
+/**
+ * Append a block to a task's note.md (created if absent), separating blocks with
+ * a blank line, and return the resulting line count. The task must already exist
+ * (its directory is not created here — an existing task is assumed). Lock-free:
+ * callers that also touch meta must hold withTaskLock around this to keep the
+ * pair atomic.
+ */
+export const appendNote = async (
+  goriHome: string,
+  taskId: string,
+  block: string,
+): Promise<number> => {
+  const path = notePath(goriHome, taskId);
+  let current = "";
+  try {
+    current = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const next = current ? `${current}\n${block}` : block;
+  await writeFileAtomic(path, next);
+  return next.split("\n").length - 1;
+};
+
 /** Serialize read-modify-write of an existing task's meta/spec across processes. */
 export const withTaskLock = <T>(
   goriHome: string,

@@ -1,14 +1,16 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { taskDir } from "./env.js";
 import {
+  appendNote,
   buildTaskId,
   ensureUniqueTaskId,
   formatStamp,
   metaFromYaml,
   metaToYaml,
+  notePath,
   readMeta,
   slugify,
   writeMeta,
@@ -93,6 +95,31 @@ describe("writeMeta / readMeta (isolated GORI_HOME)", () => {
   it("ensureUniqueTaskId keeps the id when free", async () => {
     expect(await ensureUniqueTaskId(home, "fresh_20260101-000000")).toBe(
       "fresh_20260101-000000",
+    );
+  });
+});
+
+describe("appendNote", () => {
+  let home: string;
+  const id = "t_20260101-000000";
+  beforeEach(async () => {
+    home = await mkdtemp(join(tmpdir(), "gori-note-"));
+    await mkdir(taskDir(home, id), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(home, { recursive: true, force: true });
+  });
+
+  it("creates the file and returns its line count", async () => {
+    expect(await appendNote(home, id, "## h\n\nbody\n")).toBe(3);
+    expect(await readFile(notePath(home, id), "utf8")).toBe("## h\n\nbody\n");
+  });
+
+  it("separates blocks with a blank line and accumulates the count", async () => {
+    await appendNote(home, id, "## a\n\nfirst\n");
+    expect(await appendNote(home, id, "## b\n\nsecond\n")).toBe(7);
+    expect(await readFile(notePath(home, id), "utf8")).toBe(
+      "## a\n\nfirst\n\n## b\n\nsecond\n",
     );
   });
 });

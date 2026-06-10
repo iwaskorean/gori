@@ -1,6 +1,7 @@
 import { readdir, rm, stat } from "node:fs/promises";
 import { sessionsDir, tasksDir } from "./env.js";
 import {
+  appendNote,
   buildTaskId,
   ensureUniqueTaskId,
   formatDisplay,
@@ -341,6 +342,42 @@ export const reopen = async (
         lastModifiedAt: formatDisplay(now),
       });
       return ok({ taskId: targetId, reattach: reopenerSide === null });
+    },
+  );
+};
+
+// ---------- log (note channel) ----------
+
+const NOTE_PROMOTION_LINE_THRESHOLD = 30;
+
+/** Append a timestamped block to the active task's note timeline. */
+export const log = async (
+  ctx: Ctx,
+  input: { message: string },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string; suggestPromotion: boolean }>> => {
+  if (!input.message.trim()) return err("INVALID_INPUT", "message is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to log to");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  const block = `## ${at} [${binding.side}]\n\n${input.message}\n`;
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        lastModifiedBy: binding.side,
+        lastModifiedAt: at,
+      });
+      return ok({
+        taskId: meta.taskId,
+        suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
+      });
     },
   );
 };
