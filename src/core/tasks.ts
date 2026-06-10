@@ -11,6 +11,7 @@ import {
 import {
   clearSession,
   readSession,
+  resolveSideByCwd,
   sessionFilePath,
   touchSession,
   writeSession,
@@ -167,6 +168,88 @@ export const link = async (
       side: "pair-B",
     });
     return ok({ taskId: meta.taskId });
+  });
+};
+
+// ---------- attach (reconnect / switch tasks) ----------
+
+export type AttachCandidate = {
+  taskId: string;
+  keyword: string;
+  side: Side | "ambiguous";
+  lastModifiedAt: string;
+};
+
+/** In-progress tasks whose pair-A or pair-B directory matches this cwd. */
+export const attachCandidates = async (
+  ctx: Ctx,
+): Promise<Result<{ candidates: AttachCandidate[] }>> => {
+  const candidates = (await readAllMeta(ctx.goriHome))
+    .filter((m) => m.status === "in-progress")
+    .map((m) => ({ meta: m, side: resolveSideByCwd(m, ctx.cwd) }))
+    .filter(
+      (x): x is { meta: Meta; side: Side | "ambiguous" } => x.side !== null,
+    )
+    .map(({ meta, side }) => ({
+      taskId: meta.taskId,
+      keyword: meta.keyword,
+      side,
+      lastModifiedAt: meta.lastModifiedAt,
+    }))
+    .sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt));
+  return ok({ candidates });
+};
+
+/**
+ * Pick the side to bind. An explicit side wins (it lets you reconnect from a
+ * different directory) but must already be registered; otherwise fall back to
+ * inferring from cwd.
+ */
+const resolveAttachSide = (
+  meta: Meta,
+  cwd: string,
+  explicit?: Side,
+): Result<Side> => {
+  if (explicit) {
+    const dir = explicit === "pair-A" ? meta.pairA.dir : meta.pairB.dir;
+    if (dir === null) {
+      return err("NOT_REGISTERED", `${explicit} has not joined this task`);
+    }
+    return ok(explicit);
+  }
+  const inferred = resolveSideByCwd(meta, cwd);
+  if (inferred === "ambiguous") {
+    return err("SIDE_AMBIGUOUS", "both sides share this directory; specify a side");
+  }
+  if (inferred === null) {
+    return err("NOT_REGISTERED", "this directory is not registered with the task");
+  }
+  return ok(inferred);
+};
+
+/** Bind this session to an existing in-progress task. Leaves meta untouched. */
+export const attach = async (
+  ctx: Ctx,
+  input: { taskId: string; side?: Side },
+): Promise<
+  Result<{ taskId: string; side: Side; previousActive: string | null }>
+> => {
+  const meta = await readMeta(ctx.goriHome, input.taskId);
+  if (!meta) return err("TASK_NOT_FOUND", `no such task: ${input.taskId}`);
+  if (meta.status === "closed") {
+    return err("ALREADY_CLOSED", "task is closed; reopen it before attaching");
+  }
+
+  const resolved = resolveAttachSide(meta, ctx.cwd, input.side);
+  if (!resolved.ok) return resolved;
+  const side = resolved.data;
+
+  const previous = await readSession(ctx.goriHome, ctx.sessionKey);
+  await writeSession(ctx.goriHome, ctx.sessionKey, { taskId: meta.taskId, side });
+  return ok({
+    taskId: meta.taskId,
+    side,
+    previousActive: previous?.taskId ?? null,
   });
 };
 

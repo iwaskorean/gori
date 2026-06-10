@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readMeta, writeMeta } from "./store.js";
 import { readSession, sessionFilePath, writeSession } from "./session.js";
 import {
+  attach,
+  attachCandidates,
   create,
   detach,
   link,
@@ -126,6 +128,104 @@ describe("detach", () => {
     const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
     expect(unwrap(await detach(A)).taskId).toBe(taskId);
     expect(await readSession(home, "keyA")).toBeNull();
+  });
+});
+
+describe("attach (reconnect / switch tasks)", () => {
+  it("infers the side from cwd and binds a fresh session", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+
+    // a new session sharing pair-B's directory, with no prior binding
+    const B2 = ctxOf(home, "/work/web", "keyB2");
+    const result = unwrap(await attach(B2, { taskId }));
+    expect(result.side).toBe("pair-B");
+    expect(result.previousActive).toBeNull();
+    expect(await readSession(home, "keyB2")).toEqual({ taskId, side: "pair-B" });
+  });
+
+  it("reports the previously active task when switching", async () => {
+    const one = unwrap(await create(A, { keyword: "one" }, T1));
+    const two = unwrap(await create(A, { keyword: "two" }, T2)); // A now bound to two
+    const result = unwrap(await attach(A, { taskId: one.taskId }));
+    expect(result.previousActive).toBe(two.taskId);
+    expect(await readSession(home, "keyA")).toEqual({
+      taskId: one.taskId,
+      side: "pair-A",
+    });
+  });
+
+  it("returns SIDE_AMBIGUOUS when both sides share the cwd and no side is given", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    // a different session pairs in from the same directory as pair-A
+    const Bsame = ctxOf(home, "/work/api", "keyBsame");
+    await link(Bsame, { taskId }, T2);
+
+    const X = ctxOf(home, "/work/api", "keyX");
+    expect(errorOf(await attach(X, { taskId })).code).toBe("SIDE_AMBIGUOUS");
+  });
+
+  it("accepts an explicit side to disambiguate a shared directory", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    const Bsame = ctxOf(home, "/work/api", "keyBsame");
+    await link(Bsame, { taskId }, T2);
+
+    const X = ctxOf(home, "/work/api", "keyX");
+    expect(unwrap(await attach(X, { taskId, side: "pair-B" })).side).toBe(
+      "pair-B",
+    );
+  });
+
+  it("rejects a cwd that matches neither side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    expect(errorOf(await attach(C, { taskId })).code).toBe("NOT_REGISTERED");
+  });
+
+  it("rejects an explicit side that has not joined the task", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "solo" }, T1));
+    // pair-B never linked, so its directory is unregistered
+    expect(errorOf(await attach(C, { taskId, side: "pair-B" })).code).toBe(
+      "NOT_REGISTERED",
+    );
+  });
+
+  it("rejects a non-existent task", async () => {
+    expect(
+      errorOf(await attach(A, { taskId: "ghost_20260101-000000" })).code,
+    ).toBe("TASK_NOT_FOUND");
+  });
+
+  it("refuses to attach a closed task", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    const meta = await readMeta(home, taskId);
+    if (meta) await writeMeta(home, { ...meta, status: "closed" });
+    expect(errorOf(await attach(A, { taskId })).code).toBe("ALREADY_CLOSED");
+  });
+
+  it("lists matching in-progress tasks with their side, most recent first", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+
+    const forApiDir = ctxOf(home, "/work/api", "keyProbe");
+    const { candidates } = unwrap(await attachCandidates(forApiDir));
+    expect(candidates).toEqual([
+      { taskId, keyword: "shared", side: "pair-A", lastModifiedAt: "2026-01-01 10:00:05" },
+    ]);
+
+    // a directory registered to neither side sees nothing
+    expect(unwrap(await attachCandidates(C)).candidates).toEqual([]);
+  });
+
+  it("marks a candidate ambiguous when both sides share the cwd", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    const Bsame = ctxOf(home, "/work/api", "keyBsame");
+    await link(Bsame, { taskId }, T2);
+
+    const probe = ctxOf(home, "/work/api", "keyProbe");
+    expect(unwrap(await attachCandidates(probe)).candidates[0]?.side).toBe(
+      "ambiguous",
+    );
   });
 });
 
