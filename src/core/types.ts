@@ -8,6 +8,24 @@ export type Side = "pair-A" | "pair-B";
 
 export type TaskStatus = "in-progress" | "closed";
 
+/** One side's persisted info. Before pairing, pair-B's fields are null. */
+export type SideMeta = {
+  dir: string | null;
+  joinedAt: string | null;
+};
+
+/** A task's persisted source of truth. Session/side binding lives elsewhere. */
+export type Meta = {
+  taskId: string;
+  keyword: string;
+  createdAt: string;
+  pairA: SideMeta;
+  pairB: SideMeta;
+  status: TaskStatus;
+  lastModifiedBy: Side;
+  lastModifiedAt: string;
+};
+
 /** Execution context injected into core. sessionKey is derived per run mode. */
 export type Ctx = {
   goriHome: string;
