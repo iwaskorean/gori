@@ -1,24 +1,33 @@
 #!/usr/bin/env node
 import { resolveGoriHome } from "../core/index.js";
+import {
+  renderHelpOverview,
+  renderVerbHelp,
+  suggestVerbs,
+  VERBS,
+} from "./help.js";
+import type { Verb } from "./help.js";
 
 // Entry point. For now it wires the structure (argument parsing, mcp dispatch,
 // verb table) while the actual verb logic is filled in later.
 
-const VERBS = [
-  "create", "link", "attach", "detach", "list", "status",
-  "close", "reopen", "log", "scope", "ask", "answer", "read", "help",
-] as const;
-
-type Verb = (typeof VERBS)[number];
-
 const isVerb = (value: string): value is Verb =>
   (VERBS as readonly string[]).includes(value);
 
-const printHelp = (): void => {
-  console.log("gori — a live pairing bridge between two AI coding sessions");
-  console.log("");
-  console.log("Usage: gori <verb> [args]   ·   gori mcp  (start the stdio MCP server)");
-  console.log(`verbs: ${VERBS.join(" | ")}`);
+const printHelp = (topic: string | undefined): void => {
+  if (!topic) {
+    console.log(renderHelpOverview());
+    return;
+  }
+  const detail = renderVerbHelp(topic);
+  if (detail) {
+    console.log(detail);
+    return;
+  }
+  console.error(`Unknown verb: '${topic}'`);
+  const nearby = suggestVerbs(topic);
+  if (nearby.length > 0) console.error(`Did you mean: ${nearby.join(", ")}?`);
+  process.exitCode = 1;
 };
 
 const main = (): void => {
@@ -34,14 +43,20 @@ const main = (): void => {
     return;
   }
 
-  if (!verb || verb === "help" || verb === "--help" || verb === "-h") {
-    printHelp();
+  if (!verb || verb === "--help" || verb === "-h") {
+    printHelp(undefined);
+    return;
+  }
+
+  if (verb === "help") {
+    printHelp(process.argv[3]);
     return;
   }
 
   if (!isVerb(verb)) {
     console.error(`Unknown verb: '${verb}'`);
-    console.error(`Available verbs: ${VERBS.join(", ")}`);
+    const nearby = suggestVerbs(verb);
+    if (nearby.length > 0) console.error(`Did you mean: ${nearby.join(", ")}?`);
     process.exitCode = 1;
     return;
   }
