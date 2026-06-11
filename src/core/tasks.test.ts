@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { notePath, readMeta, readSpec, writeMeta } from "./store.js";
 import { readSession, sessionFilePath, writeSession } from "./session.js";
 import {
+  answer,
+  ask,
   attach,
   attachCandidates,
   close,
@@ -447,6 +449,124 @@ describe("scope (spec channel)", () => {
     const meta = await readMeta(home, taskId);
     expect(meta?.lastModifiedBy).toBe("pair-A");
     expect(meta?.lastModifiedAt).toBe("2026-01-01 10:01:00");
+  });
+});
+
+describe("ask (spec channel)", () => {
+  it("adds a question to the partner side's open queue, attributed to the asker", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    const { id } = unwrap(await ask(A, { question: "Retry policy?" }, T3));
+    expect(id).toBe(1);
+
+    const doc = await readSpec(home, taskId);
+    expect(doc.openA).toEqual([]); // A's own queue stays empty
+    expect(doc.openB).toEqual([{ id: 1, asker: "pair-A", text: "Retry policy?" }]);
+  });
+
+  it("hands out increasing ids across calls", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    expect(unwrap(await ask(A, { question: "first?" }, T3)).id).toBe(1);
+    expect(unwrap(await ask(B, { question: "second?" }, T3)).id).toBe(2);
+  });
+
+  it("rejects a blank question", async () => {
+    await create(A, { keyword: "x" }, T1);
+    expect(errorOf(await ask(A, { question: "  " }, T2)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects asking with no active task", async () => {
+    expect(errorOf(await ask(C, { question: "hi?" }, T1)).code).toBe(
+      "NO_ACTIVE_TASK",
+    );
+  });
+});
+
+describe("answer (spec channel)", () => {
+  it("resolves a question by stable id and moves it to Answered", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "Retry policy?" }, T3); // lands in B's queue as #1
+    const { id } = unwrap(await answer(B, { ref: "#1", answer: "Exponential." }, T3));
+    expect(id).toBe(1);
+
+    const doc = await readSpec(home, taskId);
+    expect(doc.openB).toEqual([]);
+    expect(doc.answered).toEqual([
+      {
+        id: 1,
+        asker: "pair-A",
+        answerer: "pair-B",
+        date: "2026-01-01 10:01:00",
+        question: "Retry policy?",
+        answer: "Exponential.",
+      },
+    ]);
+  });
+
+  it("resolves by case-insensitive text substring", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "Which signing secret?" }, T3);
+    unwrap(await answer(B, { ref: "signing", answer: "STRIPE_KEY" }, T3));
+    expect((await readSpec(home, taskId)).answered[0]?.answer).toBe("STRIPE_KEY");
+  });
+
+  it("flattens a multiline question and answer to single lines", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "Timeout budget?\nPer attempt or total?" }, T3);
+    unwrap(await answer(B, { ref: "#1", answer: "30s\ntotal" }, T3));
+    const entry = (await readSpec(home, taskId)).answered[0];
+    expect(entry?.question).toBe("Timeout budget? Per attempt or total?");
+    expect(entry?.answer).toBe("30s total");
+  });
+
+  it("rejects an ambiguous text reference", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "retry on 500?" }, T3);
+    await ask(A, { question: "retry on 503?" }, T3);
+    expect(errorOf(await answer(B, { ref: "retry", answer: "yes" }, T3)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects a reference matching no open question", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "only question?" }, T3);
+    expect(errorOf(await answer(B, { ref: "#99", answer: "x" }, T3)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("only matches the answering side's own queue", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "for B?" }, T3); // sits in B's queue
+    // A tries to answer its own (empty) queue
+    expect(errorOf(await answer(A, { ref: "#1", answer: "x" }, T3)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects a blank answer", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "q?" }, T3);
+    expect(errorOf(await answer(B, { ref: "#1", answer: "  " }, T3)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects answering with no active task", async () => {
+    expect(errorOf(await answer(C, { ref: "#1", answer: "x" }, T1)).code).toBe(
+      "NO_ACTIVE_TASK",
+    );
   });
 });
 

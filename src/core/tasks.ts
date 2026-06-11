@@ -11,8 +11,8 @@ import {
   writeMeta,
   writeSpec,
 } from "./store.js";
-import { hasReservedHeading } from "./spec.js";
-import type { SpecDoc } from "./spec.js";
+import { hasReservedHeading, nextId } from "./spec.js";
+import type { Answered, Question, SpecDoc } from "./spec.js";
 import {
   clearSession,
   readSession,
@@ -429,6 +429,115 @@ export const scope = async (
         lastModifiedAt: at,
       });
       return ok({ taskId: meta.taskId });
+    },
+  );
+};
+
+// ---------- ask / answer (spec channel) ----------
+
+const partnerOf = (side: Side): Side => (side === "pair-A" ? "pair-B" : "pair-A");
+
+/** Collapse newlines and runs of whitespace to single spaces; answered is single-line. */
+const flatten = (text: string): string => text.replace(/\s+/g, " ").trim();
+
+/** Match by stable id (`#<id>`) or, failing that, a case-insensitive text substring. */
+const matchQuestions = (questions: Question[], ref: string): Question[] => {
+  const byId = /^#(\d+)$/.exec(ref);
+  if (byId) {
+    const id = Number(byId[1]);
+    return questions.filter((q) => q.id === id);
+  }
+  const needle = ref.toLowerCase();
+  return questions.filter((q) => q.text.toLowerCase().includes(needle));
+};
+
+/** Add a question to the partner side's Open Questions with a fresh stable id. */
+export const ask = async (
+  ctx: Ctx,
+  input: { question: string },
+  now: Date = new Date(),
+): Promise<Result<{ id: number }>> => {
+  const question = input.question.trim();
+  if (!question) return err("INVALID_INPUT", "question is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to ask in");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
+      const updated: SpecDoc =
+        partnerOf(binding.side) === "pair-A"
+          ? { ...doc, openA: [...doc.openA, entry] }
+          : { ...doc, openB: [...doc.openB, entry] };
+      await writeSpec(ctx.goriHome, binding.taskId, updated);
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        lastModifiedBy: binding.side,
+        lastModifiedAt: at,
+      });
+      return ok({ id: entry.id });
+    },
+  );
+};
+
+/** Resolve a question in the current side's Open Questions, moving it to Answered. */
+export const answer = async (
+  ctx: Ctx,
+  input: { ref: string; answer: string },
+  now: Date = new Date(),
+): Promise<Result<{ id: number }>> => {
+  const ref = input.ref.trim();
+  const answerText = input.answer.trim();
+  if (!ref) return err("INVALID_INPUT", "question reference is required");
+  if (!answerText) return err("INVALID_INPUT", "answer is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to answer in");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const mine = binding.side === "pair-A" ? doc.openA : doc.openB;
+      const [target, ...rest] = matchQuestions(mine, ref);
+      if (!target) {
+        return err("INVALID_INPUT", `no open question matches: ${ref}`);
+      }
+      if (rest.length > 0) {
+        return err("INVALID_INPUT", `ambiguous question reference: ${ref}`);
+      }
+      const resolved: Answered = {
+        id: target.id,
+        asker: target.asker,
+        answerer: binding.side,
+        date: at,
+        question: flatten(target.text),
+        answer: flatten(answerText),
+      };
+      const remaining = mine.filter((q) => q.id !== target.id);
+      const withoutQuestion: SpecDoc =
+        binding.side === "pair-A"
+          ? { ...doc, openA: remaining }
+          : { ...doc, openB: remaining };
+      await writeSpec(ctx.goriHome, binding.taskId, {
+        ...withoutQuestion,
+        answered: [...doc.answered, resolved],
+      });
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        lastModifiedBy: binding.side,
+        lastModifiedAt: at,
+      });
+      return ok({ id: target.id });
     },
   );
 };
