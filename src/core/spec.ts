@@ -187,3 +187,32 @@ export const serializeSpec = (doc: SpecDoc): string => {
   ];
   return `${sections.join("\n\n")}\n`;
 };
+
+// ---------- render (human reading view) ----------
+
+/**
+ * Render the spec for reading: same section format as the storage file, but
+ * empty sections are omitted so an early task isn't mostly blank headings.
+ * Returns "" when every section is empty — the caller treats that as no spec
+ * to show, which also covers a skeleton-only file.
+ */
+export const renderForRead = (doc: SpecDoc): string => {
+  const sections: string[] = [];
+  if (doc.summary) sections.push(textSection("## Task Summary", doc.summary));
+  if (doc.scopeA) sections.push(textSection("## pair-A Scope", doc.scopeA));
+  if (doc.scopeB) sections.push(textSection("## pair-B Scope", doc.scopeB));
+  if (doc.openA.length > 0) {
+    sections.push(
+      itemsSection("## Open Questions for pair-A", doc.openA.map(serializeQuestion)),
+    );
+  }
+  if (doc.openB.length > 0) {
+    sections.push(
+      itemsSection("## Open Questions for pair-B", doc.openB.map(serializeQuestion)),
+    );
+  }
+  if (doc.answered.length > 0) {
+    sections.push(itemsSection("## Answered", doc.answered.map(serializeAnswered)));
+  }
+  return sections.length > 0 ? `${sections.join("\n\n")}\n` : "";
+};

@@ -4,6 +4,7 @@ import {
   hasReservedHeading,
   nextId,
   parseSpec,
+  renderForRead,
   serializeSpec,
 } from "./spec.js";
 import type { SpecDoc } from "./spec.js";
@@ -90,6 +91,46 @@ describe("nextId", () => {
   it("is one past the max id across open queues and answered", () => {
     // filled has ids 1, 2, 3 (open) and 4 (answered) — answered must count.
     expect(nextId(filled)).toBe(5);
+  });
+});
+
+describe("renderForRead", () => {
+  it("returns an empty string for an empty spec", () => {
+    expect(renderForRead(emptySpec())).toBe("");
+  });
+
+  it("renders only the sections that have content", () => {
+    const rendered = renderForRead({
+      ...emptySpec(),
+      scopeA: "Own the API.",
+      openB: [{ id: 1, asker: "pair-A", text: "Retry policy?" }],
+    });
+    expect(rendered).toBe(
+      [
+        "## pair-A Scope",
+        "",
+        "Own the API.",
+        "",
+        "## Open Questions for pair-B",
+        "",
+        "- [ ] [#1] (pair-A) Retry policy?",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("renders a fully filled spec with all six sections", () => {
+    const rendered = renderForRead(filled);
+    for (const heading of [
+      "## Task Summary",
+      "## pair-A Scope",
+      "## pair-B Scope",
+      "## Open Questions for pair-A",
+      "## Open Questions for pair-B",
+      "## Answered",
+    ]) {
+      expect(rendered).toContain(heading);
+    }
   });
 });
 
