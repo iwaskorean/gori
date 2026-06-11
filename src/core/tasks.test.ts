@@ -704,6 +704,17 @@ describe("read", () => {
     ]);
   });
 
+  it("fills summary question counts even when reading the log only", async () => {
+    // `which` gates only what is rendered; the spec is still read for the counts.
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(B, { question: "waits on A?" }, T3);
+
+    const view = unwrap(await read(A, { which: "log" }));
+    expect(view.summary.openQuestionCounts).toEqual({ pairA: 1, pairB: 0 });
+    expect(view.spec).toBeNull();
+  });
+
   it("omits the spec view and my open queue when reading the log only", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2);
