@@ -160,6 +160,19 @@ export const appendNote = async (
   return next.split("\n").length - 1;
 };
 
+/** Read a task's note.md, or null when no note has been written yet (lazy file). */
+export const readNote = async (
+  goriHome: string,
+  taskId: string,
+): Promise<string | null> => {
+  try {
+    return await readFile(notePath(goriHome, taskId), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+};
+
 // ---------- spec read/write ----------
 
 export const specPath = (goriHome: string, taskId: string): string =>

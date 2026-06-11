@@ -16,6 +16,7 @@ import {
   linkCandidates,
   list,
   log,
+  read,
   reopen,
   scope,
   status,
@@ -617,6 +618,93 @@ describe("status", () => {
     expect(forA?.side).toBe("pair-A");
     expect(forA?.partnerModified).toBe(true); // B modified it last
     expect(forA?.paired).toBe(true);
+  });
+});
+
+describe("read", () => {
+  it("returns the summary with both bodies null before anything is written", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    const view = unwrap(await read(A));
+    expect(view.summary.taskId).toBe(taskId);
+    expect(view.summary.side).toBe("pair-A");
+    expect(view.spec).toBeNull();
+    expect(view.note).toBeNull();
+    expect(view.openForMe).toEqual([]);
+  });
+
+  it("returns the rendered spec and the raw note once they exist", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await scope(A, { text: "Own the API." }, T2);
+    await log(B, { message: "starting on the worker" }, T3);
+
+    const view = unwrap(await read(A));
+    expect(view.spec).toContain("## pair-A Scope");
+    expect(view.spec).not.toContain("## pair-B Scope"); // empty section omitted
+    expect(view.note).toContain("starting on the worker");
+    expect(view.summary.partnerModified).toBe(true); // B logged last
+  });
+
+  it("separates the questions waiting on the reading side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "Retry policy?" }, T3); // waits on B
+    await ask(B, { question: "Which endpoint?" }, T3); // waits on A
+
+    const forB = unwrap(await read(B));
+    expect(forB.openForMe).toEqual([
+      { id: 1, asker: "pair-A", text: "Retry policy?" },
+    ]);
+
+    const forA = unwrap(await read(A));
+    expect(forA.openForMe).toEqual([
+      { id: 2, asker: "pair-B", text: "Which endpoint?" },
+    ]);
+  });
+
+  it("omits the spec view and my open queue when reading the log only", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(B, { question: "Which endpoint?" }, T3); // waits on A
+    await log(A, { message: "note entry" }, T3);
+
+    const view = unwrap(await read(A, { which: "log" }));
+    expect(view.spec).toBeNull();
+    expect(view.openForMe).toEqual([]);
+    expect(view.note).toContain("note entry");
+  });
+
+  it("omits the note when reading the spec only", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await scope(A, { text: "Own the API." }, T2);
+    await log(A, { message: "note entry" }, T3);
+
+    const view = unwrap(await read(A, { which: "spec" }));
+    expect(view.spec).toContain("Own the API.");
+    expect(view.note).toBeNull();
+  });
+
+  it("touches the session to mark activity", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    const old = new Date(T1.getTime() - 60_000);
+    await utimes(sessionFilePath(home, "keyA"), old, old);
+    const before = (await stat(sessionFilePath(home, "keyA"))).mtimeMs;
+    await read(A);
+    const after = (await stat(sessionFilePath(home, "keyA"))).mtimeMs;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it("rejects reading with no active task", async () => {
+    expect(errorOf(await read(C)).code).toBe("NO_ACTIVE_TASK");
+  });
+
+  it("rejects reading when the active task no longer exists", async () => {
+    await writeSession(home, "keyC", {
+      taskId: "ghost_20260101-000000",
+      side: "pair-A",
+    });
+    expect(errorOf(await read(C)).code).toBe("NO_ACTIVE_TASK");
   });
 });
 

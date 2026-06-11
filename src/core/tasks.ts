@@ -6,12 +6,13 @@ import {
   ensureUniqueTaskId,
   formatDisplay,
   readMeta,
+  readNote,
   readSpec,
   withTaskLock,
   writeMeta,
   writeSpec,
 } from "./store.js";
-import { hasReservedHeading, nextId } from "./spec.js";
+import { hasReservedHeading, nextId, renderForRead } from "./spec.js";
 import type { Answered, Question, SpecDoc } from "./spec.js";
 import {
   clearSession,
@@ -613,4 +614,50 @@ export const status = async (
       partnerModified: meta.lastModifiedBy !== binding.side,
     },
   });
+};
+
+// ---------- read ----------
+
+export type ReadView = {
+  summary: ActiveStatus;
+  /** Rendered spec view; null when there is nothing to show or which === "log". */
+  spec: string | null;
+  /** Raw note timeline; null when no note exists yet or which === "spec". */
+  note: string | null;
+  /** Open questions waiting on this session's side, for the wrapper to emphasize. */
+  openForMe: Question[];
+};
+
+/** Assemble the active task's reading view: summary, spec, note, and my open queue. */
+export const read = async (
+  ctx: Ctx,
+  input: { which?: "log" | "spec" } = {},
+): Promise<Result<ReadView>> => {
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to read");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const meta = await readMeta(ctx.goriHome, binding.taskId);
+  if (!meta) return err("NO_ACTIVE_TASK", "active task no longer exists");
+
+  const summary: ActiveStatus = {
+    taskId: meta.taskId,
+    keyword: meta.keyword,
+    status: meta.status,
+    side: binding.side,
+    paired: meta.pairB.dir !== null,
+    partnerModified: meta.lastModifiedBy !== binding.side,
+  };
+
+  let spec: string | null = null;
+  let openForMe: Question[] = [];
+  if (input.which !== "log") {
+    const doc = await readSpec(ctx.goriHome, binding.taskId);
+    spec = renderForRead(doc) || null;
+    openForMe = binding.side === "pair-A" ? doc.openA : doc.openB;
+  }
+  const note =
+    input.which !== "spec" ? await readNote(ctx.goriHome, binding.taskId) : null;
+
+  return ok({ summary, spec, note, openForMe });
 };
