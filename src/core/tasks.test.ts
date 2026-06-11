@@ -599,6 +599,17 @@ describe("list", () => {
     expect(tasks[0]?.isActive).toBe(true); // A is bound to "two"
     expect(tasks[2]?.taskId).toBe("done_20260101-101000");
   });
+
+  it("includes per-side open question counts", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "for B?" }, T3);
+    await ask(A, { question: "also for B?" }, T3);
+    await ask(B, { question: "for A?" }, T3);
+
+    const { tasks } = unwrap(await list(A, T3));
+    expect(tasks[0]?.openQuestionCounts).toEqual({ pairA: 1, pairB: 2 });
+  });
 });
 
 describe("status", () => {
@@ -618,6 +629,15 @@ describe("status", () => {
     expect(forA?.side).toBe("pair-A");
     expect(forA?.partnerModified).toBe(true); // B modified it last
     expect(forA?.paired).toBe(true);
+  });
+
+  it("counts open questions per side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "for B?" }, T3);
+
+    const active = unwrap(await status(A, T3)).active;
+    expect(active?.openQuestionCounts).toEqual({ pairA: 0, pairB: 1 });
   });
 });
 

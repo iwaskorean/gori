@@ -545,6 +545,14 @@ export const answer = async (
 
 // ---------- list ----------
 
+/** Per-side unanswered question counts, read from the task's spec. */
+export type OpenQuestionCounts = { pairA: number; pairB: number };
+
+const countOpenQuestions = (doc: SpecDoc): OpenQuestionCounts => ({
+  pairA: doc.openA.length,
+  pairB: doc.openB.length,
+});
+
 export type TaskSummary = {
   taskId: string;
   keyword: string;
@@ -553,6 +561,7 @@ export type TaskSummary = {
   lastModifiedBy: Side;
   lastModifiedAt: string;
   isActive: boolean;
+  openQuestionCounts: OpenQuestionCounts;
 };
 
 const statusRank = (s: TaskStatus): number => (s === "in-progress" ? 0 : 1);
@@ -569,8 +578,8 @@ export const list = async (
   await touchSession(ctx.goriHome, ctx.sessionKey);
   await runGc(ctx.goriHome, now);
   const active = await readSession(ctx.goriHome, ctx.sessionKey);
-  const tasks = (await readAllMeta(ctx.goriHome))
-    .map((m) => ({
+  const summaries = await Promise.all(
+    (await readAllMeta(ctx.goriHome)).map(async (m) => ({
       taskId: m.taskId,
       keyword: m.keyword,
       status: m.status,
@@ -578,9 +587,10 @@ export const list = async (
       lastModifiedBy: m.lastModifiedBy,
       lastModifiedAt: m.lastModifiedAt,
       isActive: active?.taskId === m.taskId,
-    }))
-    .sort(byStatusThenRecency);
-  return ok({ tasks });
+      openQuestionCounts: countOpenQuestions(await readSpec(ctx.goriHome, m.taskId)),
+    })),
+  );
+  return ok({ tasks: summaries.sort(byStatusThenRecency) });
 };
 
 // ---------- status ----------
@@ -592,6 +602,7 @@ export type ActiveStatus = {
   side: Side;
   paired: boolean;
   partnerModified: boolean;
+  openQuestionCounts: OpenQuestionCounts;
 };
 
 export const status = async (
@@ -604,6 +615,7 @@ export const status = async (
   if (!binding) return ok({ active: null });
   const meta = await readMeta(ctx.goriHome, binding.taskId);
   if (!meta) return ok({ active: null });
+  const doc = await readSpec(ctx.goriHome, binding.taskId);
   return ok({
     active: {
       taskId: meta.taskId,
@@ -612,6 +624,7 @@ export const status = async (
       side: binding.side,
       paired: meta.pairB.dir !== null,
       partnerModified: meta.lastModifiedBy !== binding.side,
+      openQuestionCounts: countOpenQuestions(doc),
     },
   });
 };
@@ -640,6 +653,9 @@ export const read = async (
   const meta = await readMeta(ctx.goriHome, binding.taskId);
   if (!meta) return err("NO_ACTIVE_TASK", "active task no longer exists");
 
+  // The spec is read regardless of the filter: the summary's question counts
+  // come from it. `which` only gates what is rendered back.
+  const doc = await readSpec(ctx.goriHome, binding.taskId);
   const summary: ActiveStatus = {
     taskId: meta.taskId,
     keyword: meta.keyword,
@@ -647,12 +663,12 @@ export const read = async (
     side: binding.side,
     paired: meta.pairB.dir !== null,
     partnerModified: meta.lastModifiedBy !== binding.side,
+    openQuestionCounts: countOpenQuestions(doc),
   };
 
   let spec: string | null = null;
   let openForMe: Question[] = [];
   if (input.which !== "log") {
-    const doc = await readSpec(ctx.goriHome, binding.taskId);
     spec = renderForRead(doc) || null;
     openForMe = binding.side === "pair-A" ? doc.openA : doc.openB;
   }
