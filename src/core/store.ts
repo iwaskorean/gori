@@ -160,6 +160,10 @@ export const appendNote = async (
   return next.split("\n").length - 1;
 };
 
+/** Whether a task has a note timeline yet (note.md is created lazily). */
+export const noteExists = (goriHome: string, taskId: string): Promise<boolean> =>
+  pathExists(notePath(goriHome, taskId));
+
 /** Read a task's note.md, or null when no note has been written yet (lazy file). */
 export const readNote = async (
   goriHome: string,

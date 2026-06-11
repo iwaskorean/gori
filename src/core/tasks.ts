@@ -5,6 +5,7 @@ import {
   buildTaskId,
   ensureUniqueTaskId,
   formatDisplay,
+  noteExists,
   readMeta,
   readNote,
   readSpec,
@@ -136,7 +137,9 @@ export type LinkCandidate = {
   taskId: string;
   keyword: string;
   pairADir: string;
+  createdAt: string;
   lastModifiedAt: string;
+  hasNote: boolean;
   sameDir: boolean;
 };
 
@@ -148,17 +151,22 @@ export const linkCandidates = async (
   const startedByThisSession = (m: Meta): boolean =>
     session?.taskId === m.taskId && session.side === "pair-A";
 
-  const candidates = (await readAllMeta(ctx.goriHome))
+  const open = (await readAllMeta(ctx.goriHome))
     .filter((m) => m.status === "in-progress" && m.pairB.dir === null)
-    .filter((m) => !startedByThisSession(m))
-    .map((m) => ({
-      taskId: m.taskId,
-      keyword: m.keyword,
-      pairADir: m.pairA.dir ?? "",
-      lastModifiedAt: m.lastModifiedAt,
-      sameDir: m.pairA.dir === ctx.cwd,
-    }))
-    .sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt));
+    .filter((m) => !startedByThisSession(m));
+  const candidates = (
+    await Promise.all(
+      open.map(async (m) => ({
+        taskId: m.taskId,
+        keyword: m.keyword,
+        pairADir: m.pairA.dir ?? "",
+        createdAt: m.createdAt,
+        lastModifiedAt: m.lastModifiedAt,
+        hasNote: await noteExists(ctx.goriHome, m.taskId),
+        sameDir: m.pairA.dir === ctx.cwd,
+      })),
+    )
+  ).sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt));
   return ok({ candidates });
 };
 

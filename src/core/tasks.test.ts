@@ -94,9 +94,17 @@ describe("link (pairing)", () => {
     const forB = unwrap(await linkCandidates(B));
     expect(forB.candidates.map((c) => c.taskId)).toEqual([taskId]);
     expect(forB.candidates[0]?.sameDir).toBe(false);
+    expect(forB.candidates[0]?.createdAt).toBe("2026-01-01 10:00:00");
 
     const forA = unwrap(await linkCandidates(A));
     expect(forA.candidates).toEqual([]); // A started it, so it's not a candidate for A
+  });
+
+  it("flags whether a candidate has a note timeline yet", async () => {
+    unwrap(await create(A, { keyword: "shared" }, T1));
+    expect(unwrap(await linkCandidates(B)).candidates[0]?.hasNote).toBe(false);
+    await log(A, { message: "context for whoever joins" }, T2);
+    expect(unwrap(await linkCandidates(B)).candidates[0]?.hasNote).toBe(true);
   });
 
   it("pairs the partner in and binds them as pair-B", async () => {
