@@ -6,9 +6,13 @@ import {
   ensureUniqueTaskId,
   formatDisplay,
   readMeta,
+  readSpec,
   withTaskLock,
   writeMeta,
+  writeSpec,
 } from "./store.js";
+import { hasReservedHeading } from "./spec.js";
+import type { SpecDoc } from "./spec.js";
 import {
   clearSession,
   readSession,
@@ -378,6 +382,53 @@ export const log = async (
         taskId: meta.taskId,
         suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
       });
+    },
+  );
+};
+
+// ---------- scope (spec channel) ----------
+
+/**
+ * Set the current side's Scope in spec.md (skeleton created on first write).
+ * Returns SCOPE_EXISTS when a scope is already present and no mode was chosen, so
+ * the caller can offer append/replace/cancel — mirroring SIDE_AMBIGUOUS's
+ * "explicit choice needed" signal.
+ */
+export const scope = async (
+  ctx: Ctx,
+  input: { text: string; mode?: "append" | "replace" },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string }>> => {
+  const text = input.text.trim();
+  if (!text) return err("INVALID_INPUT", "scope text is required");
+  if (hasReservedHeading(text)) {
+    return err("INVALID_INPUT", "scope text must not contain a reserved spec heading");
+  }
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to scope");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
+      if (existing && !input.mode) {
+        return err("SCOPE_EXISTS", "scope already set; choose append or replace");
+      }
+      const next = existing && input.mode === "append" ? `${existing}\n${text}` : text;
+      const updated: SpecDoc =
+        binding.side === "pair-A" ? { ...doc, scopeA: next } : { ...doc, scopeB: next };
+      await writeSpec(ctx.goriHome, binding.taskId, updated);
+      await writeMeta(ctx.goriHome, {
+        ...meta,
+        lastModifiedBy: binding.side,
+        lastModifiedAt: at,
+      });
+      return ok({ taskId: meta.taskId });
     },
   );
 };

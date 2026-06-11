@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import { taskDir } from "./env.js";
 import { withLock } from "./lock.js";
+import { emptySpec, parseSpec, serializeSpec } from "./spec.js";
+import type { SpecDoc } from "./spec.js";
 import type { Meta, Side, TaskStatus } from "./types.js";
 
 // ---------- task id ----------
@@ -156,6 +158,36 @@ export const appendNote = async (
   const next = current ? `${current}\n${block}` : block;
   await writeFileAtomic(path, next);
   return next.split("\n").length - 1;
+};
+
+// ---------- spec read/write ----------
+
+export const specPath = (goriHome: string, taskId: string): string =>
+  join(taskDir(goriHome, taskId), "spec.md");
+
+/** Read and parse a task's spec.md, or an empty spec when the file is absent. */
+export const readSpec = async (
+  goriHome: string,
+  taskId: string,
+): Promise<SpecDoc> => {
+  try {
+    return parseSpec(await readFile(specPath(goriHome, taskId), "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptySpec();
+    throw error;
+  }
+};
+
+/**
+ * Serialize and atomically write a task's spec.md. The task must already exist.
+ * Lock-free: callers that also touch meta hold withTaskLock to keep the pair atomic.
+ */
+export const writeSpec = async (
+  goriHome: string,
+  taskId: string,
+  doc: SpecDoc,
+): Promise<void> => {
+  await writeFileAtomic(specPath(goriHome, taskId), serializeSpec(doc));
 };
 
 /** Serialize read-modify-write of an existing task's meta/spec across processes. */

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, stat, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { notePath, readMeta, writeMeta } from "./store.js";
+import { notePath, readMeta, readSpec, writeMeta } from "./store.js";
 import { readSession, sessionFilePath, writeSession } from "./session.js";
 import {
   attach,
@@ -15,6 +15,7 @@ import {
   list,
   log,
   reopen,
+  scope,
   status,
 } from "./tasks.js";
 import type { Ctx, Meta, Result } from "./types.js";
@@ -373,6 +374,79 @@ describe("log (note channel)", () => {
     expect(unwrap(await log(A, { message: long }, T3)).suggestPromotion).toBe(
       true,
     );
+  });
+});
+
+describe("scope (spec channel)", () => {
+  it("sets the current side's scope and creates the spec skeleton", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    expect(unwrap(await scope(A, { text: "Own the API." }, T2)).taskId).toBe(
+      taskId,
+    );
+    const doc = await readSpec(home, taskId);
+    expect(doc.scopeA).toBe("Own the API.");
+    expect(doc.scopeB).toBe("");
+  });
+
+  it("writes to the side bound to the calling session", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await scope(A, { text: "API side" }, T2);
+    await scope(B, { text: "Worker side" }, T3);
+    const doc = await readSpec(home, taskId);
+    expect(doc.scopeA).toBe("API side");
+    expect(doc.scopeB).toBe("Worker side");
+  });
+
+  it("returns SCOPE_EXISTS when a scope is already set and no mode is given", async () => {
+    await create(A, { keyword: "x" }, T1);
+    await scope(A, { text: "first" }, T2);
+    expect(errorOf(await scope(A, { text: "second" }, T3)).code).toBe(
+      "SCOPE_EXISTS",
+    );
+  });
+
+  it("appends to the existing scope on mode append", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await scope(A, { text: "first" }, T2);
+    await scope(A, { text: "second", mode: "append" }, T3);
+    expect((await readSpec(home, taskId)).scopeA).toBe("first\nsecond");
+  });
+
+  it("replaces the existing scope on mode replace", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await scope(A, { text: "first" }, T2);
+    await scope(A, { text: "second", mode: "replace" }, T3);
+    expect((await readSpec(home, taskId)).scopeA).toBe("second");
+  });
+
+  it("rejects text containing a reserved heading", async () => {
+    await create(A, { keyword: "x" }, T1);
+    expect(
+      errorOf(await scope(A, { text: "intro\n## Answered\nmore" }, T2)).code,
+    ).toBe("INVALID_INPUT");
+  });
+
+  it("rejects a blank scope", async () => {
+    await create(A, { keyword: "x" }, T1);
+    expect(errorOf(await scope(A, { text: "   " }, T2)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
+  it("rejects scoping with no active task", async () => {
+    expect(errorOf(await scope(C, { text: "hi" }, T1)).code).toBe(
+      "NO_ACTIVE_TASK",
+    );
+  });
+
+  it("updates meta last-modified to the scoping side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2); // last modified by B
+    await scope(A, { text: "mine" }, T3); // now A
+    const meta = await readMeta(home, taskId);
+    expect(meta?.lastModifiedBy).toBe("pair-A");
+    expect(meta?.lastModifiedAt).toBe("2026-01-01 10:01:00");
   });
 });
 
