@@ -491,8 +491,11 @@ describe("answer (spec channel)", () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2);
     await ask(A, { question: "Retry policy?" }, T3); // lands in B's queue as #1
-    const { id } = unwrap(await answer(B, { ref: "#1", answer: "Exponential." }, T3));
+    const { id, queueEmpty } = unwrap(
+      await answer(B, { ref: "#1", answer: "Exponential." }, T3),
+    );
     expect(id).toBe(1);
+    expect(queueEmpty).toBe(true); // B's queue is drained
 
     const doc = await readSpec(home, taskId);
     expect(doc.openB).toEqual([]);
@@ -568,6 +571,17 @@ describe("answer (spec channel)", () => {
     expect(errorOf(await answer(C, { ref: "#1", answer: "x" }, T1)).code).toBe(
       "NO_ACTIVE_TASK",
     );
+  });
+
+  it("reports a non-empty queue while questions remain", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "first?" }, T3);
+    await ask(A, { question: "second?" }, T3);
+    const first = unwrap(await answer(B, { ref: "#1", answer: "x" }, T3));
+    expect(first.queueEmpty).toBe(false);
+    const second = unwrap(await answer(B, { ref: "#2", answer: "y" }, T3));
+    expect(second.queueEmpty).toBe(true);
   });
 });
 

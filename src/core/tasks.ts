@@ -487,12 +487,16 @@ export const ask = async (
   );
 };
 
-/** Resolve a question in the current side's Open Questions, moving it to Answered. */
+/**
+ * Resolve a question in the current side's Open Questions, moving it to Answered.
+ * queueEmpty signals the caller to suggest closing (never auto-close) once this
+ * side's queue is drained — the same advisory pattern as log's suggestPromotion.
+ */
 export const answer = async (
   ctx: Ctx,
   input: { ref: string; answer: string },
   now: Date = new Date(),
-): Promise<Result<{ id: number }>> => {
+): Promise<Result<{ id: number; queueEmpty: boolean }>> => {
   const ref = input.ref.trim();
   const answerText = input.answer.trim();
   if (!ref) return err("INVALID_INPUT", "question reference is required");
@@ -538,7 +542,7 @@ export const answer = async (
         lastModifiedBy: binding.side,
         lastModifiedAt: at,
       });
-      return ok({ id: target.id });
+      return ok({ id: target.id, queueEmpty: remaining.length === 0 });
     },
   );
 };
