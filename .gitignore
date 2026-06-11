@@ -3,3 +3,10 @@ dist/
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# local planning docs — never tracked
+/README.md
+/ROADMAP.md
+/SPEC.md
+/PLAN.md
+/PROGRESS.md
