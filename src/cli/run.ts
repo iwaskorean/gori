@@ -107,8 +107,10 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
 
   const runCreate = async (): Promise<number> => {
     const keyword = positionals[0] ?? "";
+    const scopeArg = positionals[1];
     let result = await create(deps.ctx, {
       keyword,
+      ...(scopeArg !== undefined && { scope: scopeArg }),
       ...(flags.has("--force") && { force: true }),
     });
     if (!result.ok && result.error.code === "CWD_IN_USE") {
@@ -123,7 +125,11 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
         deps.out("cancelled — no task created");
         return 0;
       }
-      result = await create(deps.ctx, { keyword, force: true });
+      result = await create(deps.ctx, {
+        keyword,
+        ...(scopeArg !== undefined && { scope: scopeArg }),
+        force: true,
+      });
     }
     return emit(result, formatCreate);
   };

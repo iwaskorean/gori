@@ -108,6 +108,24 @@ describe("create", () => {
     unwrap(await close(A, T2));
     expect((await create(A, { keyword: "two" }, T3)).ok).toBe(true);
   });
+
+  it("records an initial pair-A scope in the same step", async () => {
+    const { taskId, scopeRecorded } = unwrap(
+      await create(A, { keyword: "one", scope: "FE: settings UI" }, T1),
+    );
+    expect(scopeRecorded).toBe(true);
+    expect((await readSpec(home, taskId)).scopeA).toBe("FE: settings UI");
+  });
+
+  it("rejects a scope with a reserved heading before creating anything", async () => {
+    const result = await create(
+      A,
+      { keyword: "one", scope: "## Answered\nsneaky" },
+      T1,
+    );
+    expect(errorOf(result).code).toBe("INVALID_INPUT");
+    expect(await readSession(home, "keyA")).toBeNull(); // no task was created
+  });
 });
 
 describe("link (pairing)", () => {

@@ -27,11 +27,11 @@ const taskLabel = (keyword: string, taskId: string): string =>
 export const formatCreate = (data: {
   taskId: string;
   previousActive: string | null;
+  scopeRecorded: boolean;
 }): string => {
-  const lines = [
-    `created ${data.taskId} — this session is pair-A`,
-    'next: have your partner run `gori link` in their session',
-  ];
+  const lines = [`created ${data.taskId} — this session is pair-A`];
+  if (data.scopeRecorded) lines.push("scope recorded for pair-A");
+  lines.push('next: have your partner run `gori link` in their session');
   if (data.previousActive) {
     lines.push(`note: this session switched from ${data.previousActive}`);
   }

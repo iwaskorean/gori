@@ -107,11 +107,19 @@ const runGc = async (goriHome: string, now: Date): Promise<void> => {
 
 export const create = async (
   ctx: Ctx,
-  input: { keyword: string; force?: boolean },
+  input: { keyword: string; scope?: string; force?: boolean },
   now: Date = new Date(),
-): Promise<Result<{ taskId: string; previousActive: string | null }>> => {
+): Promise<
+  Result<{ taskId: string; previousActive: string | null; scopeRecorded: boolean }>
+> => {
   const keyword = input.keyword.trim();
   if (!keyword) return err("INVALID_INPUT", "keyword is required");
+  // Validate the optional scope before any writes so a bad scope can't leave a
+  // half-initialized task behind.
+  const scopeText = input.scope?.trim() ?? "";
+  if (scopeText && hasReservedHeading(scopeText)) {
+    return err("INVALID_INPUT", "scope text must not contain a reserved spec heading");
+  }
 
   // Bootstrap guard: a directory already registered with an open task usually
   // means the caller meant link/attach, or lost track of an earlier create —
@@ -146,7 +154,15 @@ export const create = async (
   };
   await writeMeta(ctx.goriHome, meta);
   await writeSession(ctx.goriHome, ctx.sessionKey, { taskId, side: "pair-A" });
-  return ok({ taskId, previousActive: previous?.taskId ?? null });
+  if (scopeText) {
+    const doc = await readSpec(ctx.goriHome, taskId);
+    await writeSpec(ctx.goriHome, taskId, { ...doc, scopeA: scopeText });
+  }
+  return ok({
+    taskId,
+    previousActive: previous?.taskId ?? null,
+    scopeRecorded: scopeText !== "",
+  });
 };
 
 // ---------- link (pairing) ----------

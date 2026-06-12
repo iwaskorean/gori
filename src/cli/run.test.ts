@@ -203,3 +203,14 @@ describe("create bootstrap guard", () => {
     expect(await a.run(["create", "two", "--force"])).toBe(0);
   });
 });
+
+describe("create with an initial scope", () => {
+  it("records the second argument as this side's scope", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    expect(await a.run(["create", "billing", "BE: webhook endpoint"])).toBe(0);
+    expect(a.lastOut()).toContain("scope recorded");
+
+    expect(await a.run(["read", "spec"])).toBe(0);
+    expect(a.lastOut()).toContain("BE: webhook endpoint");
+  });
+});

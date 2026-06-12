@@ -28,11 +28,12 @@ const CATEGORIES: ReadonlyArray<{ title: string; verbs: readonly Verb[] }> = [
 
 const HELP: Record<Verb, VerbHelp> = {
   create: {
-    signature: 'gori create "<keyword>" [--force]',
+    signature: 'gori create "<keyword>" ["<scope>"] [--force]',
     summary:
-      "start a new task and bind this session as pair-A " +
+      "start a new task and bind this session as pair-A; an optional second " +
+      "argument records your scope in the same step " +
       "(--force: even if this directory already has an open task)",
-    example: 'gori create "billing webhook"',
+    example: 'gori create "billing webhook" "FE: webhook settings UI"',
   },
   link: {
     signature: "gori link",

@@ -33,16 +33,27 @@ describe("formatError", () => {
 
 describe("formatCreate", () => {
   it("names the side and prompts the partner to link", () => {
-    const text = formatCreate({ taskId: "x_20260101-100000", previousActive: null });
+    const text = formatCreate({
+      taskId: "x_20260101-100000",
+      previousActive: null,
+      scopeRecorded: false,
+    });
     expect(text).toContain("pair-A");
     expect(text).toContain("gori link");
     expect(text).not.toContain("switched");
+    expect(text).not.toContain("scope recorded");
   });
 
   it("mentions the task the session switched away from", () => {
     expect(
-      formatCreate({ taskId: "b_2", previousActive: "a_1" }),
+      formatCreate({ taskId: "b_2", previousActive: "a_1", scopeRecorded: false }),
     ).toContain("switched from a_1");
+  });
+
+  it("confirms an initial scope was recorded", () => {
+    expect(
+      formatCreate({ taskId: "b_2", previousActive: null, scopeRecorded: true }),
+    ).toContain("scope recorded");
   });
 });
 
