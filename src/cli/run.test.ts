@@ -131,7 +131,7 @@ describe("non-interactive (piped) sessions", () => {
     await a.run(["create", "x"]);
 
     expect(await b.run(["link"])).toBe(1);
-    expect(b.out.join("\n")).toContain("1. x_"); // candidates were shown
+    expect(b.out.join("\n")).toContain('1. "x" — x_'); // candidates were shown
     expect(b.err.join("\n")).toContain("gori link <number|task-id>");
   });
 

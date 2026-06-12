@@ -59,7 +59,7 @@ describe("formatLinkCandidates", () => {
         sameDir: true,
       },
     ]);
-    expect(text).toContain("1. x_1");
+    expect(text).toContain('1. "x" — x_1');
     expect(text).toContain("has notes");
     expect(text).toContain("⚠ same directory");
   });
@@ -70,6 +70,7 @@ describe("formatAttachCandidates", () => {
     const text = formatAttachCandidates([
       { taskId: "x_1", keyword: "x", side: "ambiguous", lastModifiedAt: "t" },
     ]);
+    expect(text).toContain('"x" — x_1');
     expect(text).toContain("side ambiguous");
   });
 });
@@ -97,9 +98,9 @@ describe("formatList", () => {
       summaryOf({ taskId: "y_2" }),
     ]);
     const [first = "", second = ""] = text.split("\n");
-    expect(first.startsWith("* 1. x_1")).toBe(true);
+    expect(first.startsWith('* 1. "x" — x_1')).toBe(true);
     expect(first).toContain("open: pair-A 1");
-    expect(second.startsWith("  2. y_2")).toBe(true);
+    expect(second.startsWith('  2. "x" — y_2')).toBe(true);
     expect(second).not.toContain("open:");
   });
 });

@@ -16,6 +16,12 @@ import type {
 
 export const formatError = (error: GoriError): string => `gori: ${error.message}`;
 
+// Listings lead with the human-readable keyword: a slugged task id alone
+// (especially from a terse keyword like a ticket number) doesn't tell the
+// reader what the work is.
+const taskLabel = (keyword: string, taskId: string): string =>
+  `"${keyword}" — ${taskId}`;
+
 // ---------- session / task ----------
 
 export const formatCreate = (data: {
@@ -40,7 +46,7 @@ export const formatLinkCandidates = (candidates: LinkCandidate[]): string => {
       ...(c.hasNote ? ["has notes"] : []),
       ...(c.sameDir ? ["⚠ same directory as this session"] : []),
     ];
-    return `  ${i + 1}. ${c.taskId} · ${extras.join(" · ")}`;
+    return `  ${i + 1}. ${taskLabel(c.keyword, c.taskId)} · ${extras.join(" · ")}`;
   });
   return ["tasks open for pairing:", ...rows].join("\n");
 };
@@ -54,7 +60,7 @@ export const formatLink = (data: { taskId: string }): string =>
 export const formatAttachCandidates = (candidates: AttachCandidate[]): string => {
   const rows = candidates.map((c, i) => {
     const side = c.side === "ambiguous" ? "side ambiguous (both match)" : c.side;
-    return `  ${i + 1}. ${c.taskId} · ${side} · last modified ${c.lastModifiedAt}`;
+    return `  ${i + 1}. ${taskLabel(c.keyword, c.taskId)} · ${side} · last modified ${c.lastModifiedAt}`;
   });
   return ["tasks matching this directory:", ...rows].join("\n");
 };
@@ -84,7 +90,7 @@ export const formatList = (tasks: TaskSummary[]): string => {
     const open =
       pairA + pairB > 0 ? ` · open: pair-A ${pairA} · pair-B ${pairB}` : "";
     return (
-      `${marker} ${i + 1}. ${t.taskId} · ${t.status} · ` +
+      `${marker} ${i + 1}. ${taskLabel(t.keyword, t.taskId)} · ${t.status} · ` +
       `${t.paired ? "paired" : "unpaired"} · ` +
       `last: ${t.lastModifiedBy} ${t.lastModifiedAt}${open}`
     );
