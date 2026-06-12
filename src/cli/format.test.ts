@@ -106,7 +106,7 @@ describe("formatList", () => {
 
 describe("formatStatus", () => {
   it("guides attach/create when nothing is active", () => {
-    const text = formatStatus(null);
+    const text = formatStatus(null, "agent-f50cf907");
     expect(text).toContain("gori attach");
     expect(text).toContain("gori create");
   });
@@ -118,10 +118,20 @@ describe("formatStatus", () => {
         partnerModified: true,
         openQuestionCounts: { pairA: 2, pairB: 1 },
       }),
+      "agent-f50cf907",
     );
     expect(text).toContain("🆕");
     expect(text).toContain("for you: 1");
     expect(text).toContain("for partner: 2");
+  });
+
+  it("always exposes the session key for pairing diagnostics", () => {
+    // Two sessions sharing one key broke pairing and was undiagnosable from
+    // CLI output; the key line lets a W0-style check compare sessions directly.
+    expect(formatStatus(null, "agent-f50cf907")).toContain(
+      "session: agent-f50cf907",
+    );
+    expect(formatStatus(activeOf(), "tmux-3")).toContain("session: tmux-3");
   });
 });
 

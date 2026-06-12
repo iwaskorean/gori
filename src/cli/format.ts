@@ -98,11 +98,19 @@ const summaryLine = (a: ActiveStatus): string =>
 
 const TURN_ALERT = "🆕 your partner made the last change";
 
-export const formatStatus = (active: ActiveStatus | null): string => {
+export const formatStatus = (
+  active: ActiveStatus | null,
+  sessionKey: string,
+): string => {
+  // The key matches this session's pointer filename in sessions/, so pairing
+  // problems are diagnosable from CLI output alone (two sessions sharing one
+  // key was invisible without inspecting the data directory).
+  const sessionLine = `session: ${sessionKey}`;
   if (!active) {
     return (
       "no active task — `gori attach` to reconnect " +
-      'or `gori create "<keyword>"` to start one'
+      'or `gori create "<keyword>"` to start one' +
+      `\n${sessionLine}`
     );
   }
   const lines = [summaryLine(active)];
@@ -116,6 +124,7 @@ export const formatStatus = (active: ActiveStatus | null): string => {
       ? active.openQuestionCounts.pairB
       : active.openQuestionCounts.pairA;
   lines.push(`open questions — for you: ${mine} · for partner: ${partners}`);
+  lines.push(sessionLine);
   return lines.join("\n");
 };
 
