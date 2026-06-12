@@ -107,11 +107,29 @@ const runGc = async (goriHome: string, now: Date): Promise<void> => {
 
 export const create = async (
   ctx: Ctx,
-  input: { keyword: string },
+  input: { keyword: string; force?: boolean },
   now: Date = new Date(),
 ): Promise<Result<{ taskId: string; previousActive: string | null }>> => {
   const keyword = input.keyword.trim();
   if (!keyword) return err("INVALID_INPUT", "keyword is required");
+
+  // Bootstrap guard: a directory already registered with an open task usually
+  // means the caller meant link/attach, or lost track of an earlier create —
+  // both produced stray duplicate tasks in pairing dogfooding. `force` starts
+  // another task here deliberately.
+  if (!input.force) {
+    const openHere = (await readAllMeta(ctx.goriHome)).filter(
+      (m) => m.status === "in-progress" && resolveSideByCwd(m, ctx.cwd) !== null,
+    );
+    if (openHere.length > 0) {
+      const ids = openHere.map((m) => m.taskId).join(", ");
+      return err(
+        "CWD_IN_USE",
+        `this directory already belongs to an in-progress task: ${ids} — ` +
+          "reconnect with `gori attach`, or re-run with --force to start another",
+      );
+    }
+  }
 
   const previous = await readSession(ctx.goriHome, ctx.sessionKey);
   const taskId = await ensureUniqueTaskId(ctx.goriHome, buildTaskId(keyword, now));

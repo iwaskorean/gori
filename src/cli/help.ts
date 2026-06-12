@@ -28,8 +28,10 @@ const CATEGORIES: ReadonlyArray<{ title: string; verbs: readonly Verb[] }> = [
 
 const HELP: Record<Verb, VerbHelp> = {
   create: {
-    signature: 'gori create "<keyword>"',
-    summary: "start a new task and bind this session as pair-A",
+    signature: 'gori create "<keyword>" [--force]',
+    summary:
+      "start a new task and bind this session as pair-A " +
+      "(--force: even if this directory already has an open task)",
     example: 'gori create "billing webhook"',
   },
   link: {

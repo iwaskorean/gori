@@ -42,7 +42,8 @@ export type GoriErrorCode =
   | "NOT_REGISTERED"
   | "ALREADY_CLOSED"
   | "ALREADY_OPEN"
-  | "SCOPE_EXISTS";
+  | "SCOPE_EXISTS"
+  | "CWD_IN_USE";
 
 /** Structured error; the CLI and MCP wrappers decide how to present it. */
 export type GoriError = {

@@ -105,6 +105,29 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
     return items[n - 1] ?? null;
   };
 
+  const runCreate = async (): Promise<number> => {
+    const keyword = positionals[0] ?? "";
+    let result = await create(deps.ctx, {
+      keyword,
+      ...(flags.has("--force") && { force: true }),
+    });
+    if (!result.ok && result.error.code === "CWD_IN_USE") {
+      if (!deps.prompt) return fail(result.error);
+      deps.errOut(formatError(result.error));
+      const reply = (
+        await deps.prompt("start another task here anyway? [y/N]: ")
+      )
+        .trim()
+        .toLowerCase();
+      if (reply !== "y" && reply !== "yes") {
+        deps.out("cancelled — no task created");
+        return 0;
+      }
+      result = await create(deps.ctx, { keyword, force: true });
+    }
+    return emit(result, formatCreate);
+  };
+
   const runLink = async (): Promise<number> => {
     const found = await linkCandidates(deps.ctx);
     if (!found.ok) return fail(found.error);
@@ -252,10 +275,7 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
 
   switch (verb) {
     case "create":
-      return emit(
-        await create(deps.ctx, { keyword: positionals[0] ?? "" }),
-        formatCreate,
-      );
+      return runCreate();
     case "link":
       return runLink();
     case "attach":

@@ -82,8 +82,31 @@ describe("create", () => {
 
   it("reports the previously active task when re-creating in the same session", async () => {
     const first = unwrap(await create(A, { keyword: "one" }, T1));
-    const second = unwrap(await create(A, { keyword: "two" }, T2));
+    const second = unwrap(await create(A, { keyword: "two", force: true }, T2));
     expect(second.previousActive).toBe(first.taskId);
+  });
+
+  it("rejects creating where an in-progress task already registered this directory", async () => {
+    const first = unwrap(await create(A, { keyword: "one" }, T1));
+    const error = errorOf(await create(A, { keyword: "two" }, T2));
+    expect(error.code).toBe("CWD_IN_USE");
+    expect(error.message).toContain(first.taskId);
+  });
+
+  it("rejects creating from a directory registered as the partner side", async () => {
+    // The wrong-side create observed in dogfooding: the session that should
+    // have linked as pair-B started a second task instead.
+    const { taskId } = unwrap(await create(A, { keyword: "one" }, T1));
+    unwrap(await link(B, { taskId }, T2));
+    expect(errorOf(await create(B, { keyword: "dup" }, T3)).code).toBe(
+      "CWD_IN_USE",
+    );
+  });
+
+  it("allows creating again once the directory's task is closed", async () => {
+    unwrap(await create(A, { keyword: "one" }, T1));
+    unwrap(await close(A, T2));
+    expect((await create(A, { keyword: "two" }, T3)).ok).toBe(true);
   });
 });
 
@@ -161,7 +184,7 @@ describe("attach (reconnect / switch tasks)", () => {
 
   it("reports the previously active task when switching", async () => {
     const one = unwrap(await create(A, { keyword: "one" }, T1));
-    const two = unwrap(await create(A, { keyword: "two" }, T2)); // A now bound to two
+    const two = unwrap(await create(A, { keyword: "two", force: true }, T2)); // A now bound to two
     const result = unwrap(await attach(A, { taskId: one.taskId }));
     expect(result.previousActive).toBe(two.taskId);
     expect(await readSession(home, "keyA")).toEqual({
@@ -596,7 +619,7 @@ describe("answer (spec channel)", () => {
 describe("list", () => {
   it("orders in-progress before closed, each most-recent first, and marks the active task", async () => {
     unwrap(await create(A, { keyword: "one" }, T1)); // A now bound to "two" after next call
-    const two = unwrap(await create(A, { keyword: "two" }, T3));
+    const two = unwrap(await create(A, { keyword: "two", force: true }, T3));
 
     // a closed task that is more recent than the in-progress ones
     const closed: Meta = {

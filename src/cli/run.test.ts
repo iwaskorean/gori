@@ -174,3 +174,32 @@ describe("argument validation and errors", () => {
     expect(a.lastOut()).toContain("gori answer");
   });
 });
+
+describe("create bootstrap guard", () => {
+  it("blocks a non-interactive duplicate create and hints --force", async () => {
+    const a = makeSession(home, "/work/api", "keyA", false);
+    expect(await a.run(["create", "one"])).toBe(0);
+    expect(await a.run(["create", "two"])).toBe(1);
+    expect(a.err.join("\n")).toContain("--force");
+  });
+
+  it("creates after an interactive confirmation", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    await a.run(["create", "one"]);
+    expect(await a.run(["create", "two"], ["y"])).toBe(0);
+    expect(a.lastOut()).toContain("pair-A");
+  });
+
+  it("cancels cleanly when the confirmation is declined", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    await a.run(["create", "one"]);
+    expect(await a.run(["create", "two"], [""])).toBe(0);
+    expect(a.lastOut()).toContain("cancelled");
+  });
+
+  it("honors --force without prompting", async () => {
+    const a = makeSession(home, "/work/api", "keyA", false);
+    await a.run(["create", "one"]);
+    expect(await a.run(["create", "two", "--force"])).toBe(0);
+  });
+});
