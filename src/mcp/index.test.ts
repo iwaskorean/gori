@@ -136,6 +136,43 @@ describe("two-session pairing flow", () => {
   });
 });
 
+describe("remaining tool wiring", () => {
+  // Several formatters share the `{ taskId }` shape, so a verb wired to the
+  // wrong formatter would still typecheck — only calling each tool catches it.
+  it("exercises scope, detach, attach, list, and reopen end-to-end", async () => {
+    const a = await connectSession(home, "/work/api", "mcp-a");
+    await a.call("gori_create", { keyword: "wiring" });
+
+    expect((await a.call("gori_scope", { text: "first" })).isError).toBe(false);
+    const conflict = await a.call("gori_scope", { text: "second" });
+    expect(conflict.isError).toBe(true);
+    expect(conflict.text).toMatch(/^SCOPE_EXISTS: /);
+    const appended = await a.call("gori_scope", { text: "second", mode: "append" });
+    expect(appended.isError).toBe(false);
+
+    const detached = await a.call("gori_detach");
+    expect(detached.text).toContain("detached");
+
+    // A fresh server process for the same directory recovers via attach.
+    const restarted = await connectSession(home, "/work/api", "mcp-a2");
+    const candidates = await restarted.call("gori_attach");
+    expect(candidates.text).toContain('"wiring"');
+    const taskId = /wiring_[\d-]+/.exec(candidates.text)?.[0];
+    expect(taskId).toBeDefined();
+    const attached = await restarted.call("gori_attach", { task_id: taskId });
+    expect(attached.isError).toBe(false);
+    expect(attached.text).toContain("pair-A");
+
+    const listed = await restarted.call("gori_list");
+    expect(listed.text).toContain('"wiring"');
+
+    await restarted.call("gori_close");
+    const reopened = await restarted.call("gori_reopen", { task_id: taskId });
+    expect(reopened.isError).toBe(false);
+    expect(reopened.text).toContain("reopened");
+  });
+});
+
 describe("error responses", () => {
   it("prefixes the core error code for agent branching", async () => {
     const a = await connectSession(home, "/work/api", "mcp-a");
