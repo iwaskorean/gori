@@ -19,8 +19,8 @@ export const formatError = (error: GoriError): string => `gori: ${error.message}
 // Listings lead with the human-readable keyword: a slugged task id alone
 // (especially from a terse keyword like a ticket number) doesn't tell the
 // reader what the work is.
-const taskLabel = (keyword: string, taskId: string): string =>
-  `"${keyword}" — ${taskId}`;
+const taskLabel = (keyword: string, taskId: string, badge = ""): string =>
+  `"${keyword}"${badge} — ${taskId}`;
 
 // ---------- session / task ----------
 
@@ -31,7 +31,7 @@ export const formatCreate = (data: {
 }): string => {
   const lines = [`created ${data.taskId} — this session is pair-A`];
   if (data.scopeRecorded) lines.push("scope recorded for pair-A");
-  lines.push('next: have your partner run `gori link` in their session');
+  lines.push("next: your partner links to this task from their session");
   if (data.previousActive) {
     lines.push(`note: this session switched from ${data.previousActive}`);
   }
@@ -54,7 +54,7 @@ export const formatLinkCandidates = (candidates: LinkCandidate[]): string => {
 export const formatLink = (data: { taskId: string }): string =>
   [
     `paired with ${data.taskId} — this session is pair-B`,
-    "tip: run `gori read` to see your partner's scope and open questions",
+    "tip: read the task to see your partner's scope and open questions",
   ].join("\n");
 
 export const formatAttachCandidates = (candidates: AttachCandidate[]): string => {
@@ -82,15 +82,15 @@ export const formatDetach = (data: { taskId: string | null }): string =>
 
 export const formatList = (tasks: TaskSummary[]): string => {
   if (tasks.length === 0) {
-    return 'no tasks yet — run `gori create "<keyword>"` to start one';
+    return "no tasks yet — create a task to start one";
   }
   const rows = tasks.map((t, i) => {
-    const marker = t.isActive ? "*" : " ";
     const { pairA, pairB } = t.openQuestionCounts;
     const open =
       pairA + pairB > 0 ? ` · open: pair-A ${pairA} · pair-B ${pairB}` : "";
+    const active = t.isActive ? " (active)" : "";
     return (
-      `${marker} ${i + 1}. ${taskLabel(t.keyword, t.taskId)} · ${t.status} · ` +
+      `${i + 1}. ${taskLabel(t.keyword, t.taskId, active)} · ${t.status} · ` +
       `${t.paired ? "paired" : "unpaired"} · ` +
       `last: ${t.lastModifiedBy} ${t.lastModifiedAt}${open}`
     );
@@ -99,8 +99,8 @@ export const formatList = (tasks: TaskSummary[]): string => {
 };
 
 const summaryLine = (a: ActiveStatus): string =>
-  `${a.taskId} · ${a.status} · you are ${a.side} · ` +
-  (a.paired ? "paired" : "waiting for a partner (`gori link` on their side)");
+  `${taskLabel(a.keyword, a.taskId)} · ${a.status} · you are ${a.side} · ` +
+  (a.paired ? "paired" : "waiting for the partner session to link");
 
 const TURN_ALERT = "🆕 your partner made the last change";
 
@@ -114,13 +114,13 @@ export const formatStatus = (
   const sessionLine = `session: ${sessionKey}`;
   if (!active) {
     return (
-      "no active task — `gori attach` to reconnect " +
-      'or `gori create "<keyword>"` to start one' +
+      "no active task — attach to reconnect " +
+      "or create a task to start one" +
       `\n${sessionLine}`
     );
   }
   const lines = [summaryLine(active)];
-  if (active.partnerModified) lines.push(`${TURN_ALERT} — \`gori read\` to catch up`);
+  if (active.partnerModified) lines.push(`${TURN_ALERT} — read to catch up`);
   const mine =
     active.side === "pair-A"
       ? active.openQuestionCounts.pairA
@@ -143,7 +143,7 @@ export const formatReopen = (data: { taskId: string; reattach: boolean }): strin
   const lines = [`reopened ${data.taskId}`];
   if (data.reattach) {
     lines.push(
-      `this session is not bound to it — run \`gori attach ${data.taskId}\` to work on it`,
+      `this session is not bound to it — attach to ${data.taskId} to work on it`,
     );
   }
   return lines.join("\n");
@@ -158,7 +158,7 @@ export const formatLog = (data: {
   const lines = [`logged to ${data.taskId}`];
   if (data.suggestPromotion) {
     lines.push(
-      "note: the timeline is getting long — consider `gori scope` or `gori ask` to structure decisions",
+      "note: the timeline is getting long — consider scope or ask to structure decisions",
     );
   }
   return lines.join("\n");
@@ -173,7 +173,7 @@ export const formatAsk = (data: { id: number }): string =>
 export const formatAnswer = (data: { id: number; queueEmpty: boolean }): string => {
   const lines = [`answered #${data.id}`];
   if (data.queueEmpty) {
-    lines.push("your queue is empty — `gori close` when the task is done");
+    lines.push("your queue is empty — close when the task is done");
   }
   return lines.join("\n");
 };
@@ -205,7 +205,7 @@ export const formatRead = (
     for (const q of view.openForMe) {
       lines.push(`  [#${q.id}] (${q.asker}) ${indentContinuation(q.text)}`);
     }
-    lines.push('answer with: gori answer #<id> "<your answer>"');
+    lines.push("answer each by its #id");
   }
   return lines.join("\n");
 };

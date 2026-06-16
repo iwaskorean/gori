@@ -58,7 +58,7 @@ describe("two-session end-to-end flow", () => {
     expect(await a.run(["ask", "Retry policy?"])).toBe(0);
 
     expect(await b.run(["answer", "#1", "Exponential backoff."])).toBe(0);
-    expect(b.lastOut()).toContain("gori close"); // queue drained → close hint
+    expect(b.lastOut()).toContain("close"); // queue drained → close hint
 
     expect(await a.run(["log", "deployed to staging"])).toBe(0);
 

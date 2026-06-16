@@ -50,8 +50,8 @@ import {
 } from "../cli/format.js";
 
 const INSTRUCTIONS = [
-  "gori pairs this session with a partner AI session working in a separate",
-  "repository, sharing one task with a timeline (log) and a structured spec",
+  "gori pairs this session with a partner session working in a separate repo",
+  "or directory, sharing one task with a timeline (log) and a structured spec",
   "(scope / questions / answers).",
   "",
   "- Start or resume work with gori_status; when it shows 🆕, call gori_read",

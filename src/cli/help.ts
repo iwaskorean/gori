@@ -52,7 +52,7 @@ const HELP: Record<Verb, VerbHelp> = {
   },
   list: {
     signature: "gori list",
-    summary: "list tasks: in-progress first, then closed; * marks your active task",
+    summary: "list tasks: in-progress first, then closed; your active task is tagged (active)",
     example: "gori list",
   },
   status: {
@@ -104,7 +104,7 @@ const HELP: Record<Verb, VerbHelp> = {
 
 export const renderHelpOverview = (): string => {
   const lines = [
-    "gori — a live pairing bridge between two AI coding sessions",
+    "gori — a live pairing bridge between two AI sessions",
     "",
     "Usage: gori <verb> [args]   ·   gori mcp  (start the stdio MCP server)",
   ];

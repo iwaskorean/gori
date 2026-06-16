@@ -39,7 +39,7 @@ describe("formatCreate", () => {
       scopeRecorded: false,
     });
     expect(text).toContain("pair-A");
-    expect(text).toContain("gori link");
+    expect(text).toContain("links to this task");
     expect(text).not.toContain("switched");
     expect(text).not.toContain("scope recorded");
   });
@@ -100,7 +100,7 @@ describe("formatList", () => {
   });
 
   it("guides creation when there are no tasks", () => {
-    expect(formatList([])).toContain("gori create");
+    expect(formatList([])).toContain("create a task");
   });
 
   it("marks the active task and shows open counts only when present", () => {
@@ -109,9 +109,10 @@ describe("formatList", () => {
       summaryOf({ taskId: "y_2" }),
     ]);
     const [first = "", second = ""] = text.split("\n");
-    expect(first.startsWith('* 1. "x" — x_1')).toBe(true);
+    expect(first.startsWith('1. "x" (active) — x_1')).toBe(true);
     expect(first).toContain("open: pair-A 1");
-    expect(second.startsWith('  2. "x" — y_2')).toBe(true);
+    expect(second.startsWith('2. "x" — y_2')).toBe(true);
+    expect(second).not.toContain("(active)");
     expect(second).not.toContain("open:");
   });
 });
@@ -119,8 +120,8 @@ describe("formatList", () => {
 describe("formatStatus", () => {
   it("guides attach/create when nothing is active", () => {
     const text = formatStatus(null, "agent-f50cf907");
-    expect(text).toContain("gori attach");
-    expect(text).toContain("gori create");
+    expect(text).toContain("attach");
+    expect(text).toContain("create a task");
   });
 
   it("shows the turn alert and per-side counts from my perspective", () => {
@@ -150,7 +151,7 @@ describe("formatStatus", () => {
 describe("formatReopen", () => {
   it("tells an unbound session how to attach", () => {
     expect(formatReopen({ taskId: "x_1", reattach: true })).toContain(
-      "gori attach x_1",
+      "attach to x_1",
     );
     expect(formatReopen({ taskId: "x_1", reattach: false })).not.toContain(
       "attach",
@@ -160,8 +161,8 @@ describe("formatReopen", () => {
 
 describe("formatAnswer", () => {
   it("suggests close only when the queue is drained", () => {
-    expect(formatAnswer({ id: 1, queueEmpty: true })).toContain("gori close");
-    expect(formatAnswer({ id: 1, queueEmpty: false })).not.toContain("gori close");
+    expect(formatAnswer({ id: 1, queueEmpty: true })).toContain("close");
+    expect(formatAnswer({ id: 1, queueEmpty: false })).not.toContain("close");
   });
 });
 
@@ -191,6 +192,6 @@ describe("formatRead", () => {
       viewOf({ openForMe: [{ id: 3, asker: "pair-B", text: "retry?" }] }),
     );
     expect(text).toContain("[#3] (pair-B) retry?");
-    expect(text).toContain('gori answer #<id>');
+    expect(text).toContain("answer each by its #id");
   });
 });

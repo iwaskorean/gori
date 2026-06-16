@@ -1,11 +1,11 @@
 ---
 name: gori
-description: Real-time pairing bridge between two AI coding sessions working in separate repos or directories (e.g. backend + frontend on one change). Engage when this session's work needs a partner session to share scope, decisions, and open questions, or when the user mentions gori or pairing. Drives the gori_* MCP tools, falling back to the `gori` CLI.
+description: Real-time pairing bridge between two AI sessions working on one task across separate repos or directories (e.g. backend + frontend on one change). Engage when this session needs a partner session to share scope, decisions, and open questions, or when the user mentions gori or pairing. Drives the gori_* MCP tools, falling back to the `gori` CLI.
 ---
 
 # gori — pairing bridge
 
-Pair this session with a partner AI session in a separate repo or directory. One shared task carries a timeline (`log`) and a structured spec (`scope` plus questions and answers). The two sides are symmetric peers — the only difference is who started.
+Pair this session with a partner session in a separate repo or directory. One shared task carries a timeline (`log`) and a structured spec (`scope` plus questions and answers). The two sides are symmetric peers — the only difference is who started.
 
 ## Using gori
 
