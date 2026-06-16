@@ -2,6 +2,7 @@ import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import { taskDir } from "./env.js";
+import { isErrnoException } from "./errors.js";
 import { withLock } from "./lock.js";
 import { emptySpec, parseSpec, serializeSpec } from "./spec.js";
 import type { SpecDoc } from "./spec.js";
@@ -121,7 +122,7 @@ export const readMeta = async (
   try {
     return metaFromYaml(await readFile(metaPath(goriHome, taskId), "utf8"));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
     throw error;
   }
 };
@@ -153,7 +154,7 @@ export const appendNote = async (
   try {
     current = await readFile(path, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    if (!(isErrnoException(error) && error.code === "ENOENT")) throw error;
   }
   const next = current ? `${current}\n${block}` : block;
   await writeFileAtomic(path, next);
@@ -172,7 +173,7 @@ export const readNote = async (
   try {
     return await readFile(notePath(goriHome, taskId), "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
     throw error;
   }
 };
@@ -190,7 +191,7 @@ export const readSpec = async (
   try {
     return parseSpec(await readFile(specPath(goriHome, taskId), "utf8"));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptySpec();
+    if (isErrnoException(error) && error.code === "ENOENT") return emptySpec();
     throw error;
   }
 };

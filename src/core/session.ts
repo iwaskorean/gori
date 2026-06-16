@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { sessionsDir } from "./env.js";
+import { isErrnoException } from "./errors.js";
 import { writeFileAtomic } from "./store.js";
 import type { Meta, Side } from "./types.js";
 
@@ -21,7 +22,7 @@ export const readSession = async (
     if (!taskId || (side !== "pair-A" && side !== "pair-B")) return null;
     return { taskId, side };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (isErrnoException(error) && error.code === "ENOENT") return null;
     throw error;
   }
 };

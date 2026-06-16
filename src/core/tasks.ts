@@ -45,6 +45,13 @@ const readAllMeta = async (goriHome: string): Promise<Meta[]> => {
   return metas.filter((m): m is Meta => m !== null);
 };
 
+/** Stamp the modifying side and time — the shared touch in every existing-task RMW verb. */
+const markModified = (meta: Meta, by: Side, at: string): Meta => ({
+  ...meta,
+  lastModifiedBy: by,
+  lastModifiedAt: at,
+});
+
 /**
  * Read-modify-write an existing task under its lock. Pre-checks existence so the
  * task directory (and thus its lockfile) exists, re-checks inside the lock, and
@@ -349,10 +356,8 @@ export const close = async (
         return err("ALREADY_CLOSED", "task is already closed");
       }
       await writeMeta(ctx.goriHome, {
-        ...meta,
+        ...markModified(meta, binding.side, formatDisplay(now)),
         status: "closed",
-        lastModifiedBy: binding.side,
-        lastModifiedAt: formatDisplay(now),
       });
       return ok({ taskId: meta.taskId });
     },
@@ -383,10 +388,8 @@ export const reopen = async (
       const reopenerSide: Side | null =
         session && session.taskId === targetId ? session.side : null;
       await writeMeta(ctx.goriHome, {
-        ...meta,
+        ...markModified(meta, reopenerSide ?? meta.lastModifiedBy, formatDisplay(now)),
         status: "in-progress",
-        lastModifiedBy: reopenerSide ?? meta.lastModifiedBy,
-        lastModifiedAt: formatDisplay(now),
       });
       return ok({ taskId: targetId, reattach: reopenerSide === null });
     },
@@ -416,11 +419,7 @@ export const log = async (
     { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
     async (meta) => {
       const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
-      await writeMeta(ctx.goriHome, {
-        ...meta,
-        lastModifiedBy: binding.side,
-        lastModifiedAt: at,
-      });
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({
         taskId: meta.taskId,
         suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
@@ -466,11 +465,7 @@ export const scope = async (
       const updated: SpecDoc =
         binding.side === "pair-A" ? { ...doc, scopeA: next } : { ...doc, scopeB: next };
       await writeSpec(ctx.goriHome, binding.taskId, updated);
-      await writeMeta(ctx.goriHome, {
-        ...meta,
-        lastModifiedBy: binding.side,
-        lastModifiedAt: at,
-      });
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({ taskId: meta.taskId });
     },
   );
@@ -519,11 +514,7 @@ export const ask = async (
           ? { ...doc, openA: [...doc.openA, entry] }
           : { ...doc, openB: [...doc.openB, entry] };
       await writeSpec(ctx.goriHome, binding.taskId, updated);
-      await writeMeta(ctx.goriHome, {
-        ...meta,
-        lastModifiedBy: binding.side,
-        lastModifiedAt: at,
-      });
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({ id: entry.id });
     },
   );
@@ -579,11 +570,7 @@ export const answer = async (
         ...withoutQuestion,
         answered: [...doc.answered, resolved],
       });
-      await writeMeta(ctx.goriHome, {
-        ...meta,
-        lastModifiedBy: binding.side,
-        lastModifiedAt: at,
-      });
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({ id: target.id, queueEmpty: remaining.length === 0 });
     },
   );

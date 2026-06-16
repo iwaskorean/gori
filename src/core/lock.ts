@@ -1,4 +1,5 @@
 import { open, rm, stat } from "node:fs/promises";
+import { isErrnoException } from "./errors.js";
 
 const RETRY_MS = 20;
 const TIMEOUT_MS = 5_000;
@@ -35,7 +36,7 @@ export const withLock = async <T>(
       await handle.close();
       break;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      if (!(isErrnoException(error) && error.code === "EEXIST")) throw error;
       await breakIfStale(lockPath);
       if (Date.now() > deadline) {
         throw new Error(`gori: timed out acquiring lock (${lockPath})`);
