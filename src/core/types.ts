@@ -35,6 +35,7 @@ export type Ctx = {
 
 export type GoriErrorCode =
   | "INVALID_INPUT"
+  | "INVALID_TASK_ID"
   | "NO_ACTIVE_TASK"
   | "TASK_NOT_FOUND"
   | "NO_PAIRABLE_TASK"

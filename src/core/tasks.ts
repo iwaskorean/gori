@@ -5,6 +5,7 @@ import {
   buildTaskId,
   ensureUniqueTaskId,
   formatDisplay,
+  isSafeTaskId,
   noteExists,
   readMeta,
   readNote,
@@ -51,6 +52,10 @@ const markModified = (meta: Meta, by: Side, at: string): Meta => ({
   lastModifiedBy: by,
   lastModifiedAt: at,
 });
+
+/** Reject an externally-supplied task id that could escape the store via path traversal. */
+const guardTaskId = (id: string): Result<never> | null =>
+  isSafeTaskId(id) ? null : err("INVALID_TASK_ID", `invalid task id: ${id}`);
 
 /**
  * Read-modify-write an existing task under its lock. Pre-checks existence so the
@@ -215,8 +220,10 @@ export const link = async (
   ctx: Ctx,
   input: { taskId: string },
   now: Date = new Date(),
-): Promise<Result<{ taskId: string }>> =>
-  withExistingTask(
+): Promise<Result<{ taskId: string }>> => {
+  const bad = guardTaskId(input.taskId);
+  if (bad) return bad;
+  return withExistingTask(
     ctx.goriHome,
     input.taskId,
     { code: "TASK_NOT_FOUND", message: `no such task: ${input.taskId}` },
@@ -245,6 +252,7 @@ export const link = async (
       return ok({ taskId: meta.taskId });
     },
   );
+};
 
 // ---------- attach (reconnect / switch tasks) ----------
 
@@ -309,6 +317,8 @@ export const attach = async (
 ): Promise<
   Result<{ taskId: string; side: Side; previousActive: string | null }>
 > => {
+  const bad = guardTaskId(input.taskId);
+  if (bad) return bad;
   const meta = await readMeta(ctx.goriHome, input.taskId);
   if (!meta) return err("TASK_NOT_FOUND", `no such task: ${input.taskId}`);
   if (meta.status === "closed") {
@@ -370,6 +380,10 @@ export const reopen = async (
   input: { taskId?: string },
   now: Date = new Date(),
 ): Promise<Result<{ taskId: string; reattach: boolean }>> => {
+  if (input.taskId !== undefined) {
+    const bad = guardTaskId(input.taskId);
+    if (bad) return bad;
+  }
   const session = await readSession(ctx.goriHome, ctx.sessionKey);
   const targetId = input.taskId ?? session?.taskId;
   if (!targetId) {

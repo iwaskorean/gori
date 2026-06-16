@@ -8,6 +8,7 @@ import {
   buildTaskId,
   ensureUniqueTaskId,
   formatStamp,
+  isSafeTaskId,
   metaFromYaml,
   metaToYaml,
   notePath,
@@ -41,6 +42,34 @@ describe("slugify", () => {
   it("falls back to 'task' when empty", () => {
     expect(slugify("///")).toBe("task");
   });
+  it("strips non-whitespace control characters", () => {
+    expect(slugify("a\x07b")).toBe("ab");
+  });
+  it("still turns whitespace control chars into hyphens", () => {
+    expect(slugify("a\tb")).toBe("a-b");
+  });
+});
+
+describe("isSafeTaskId", () => {
+  it("accepts ids buildTaskId can produce", () => {
+    expect(isSafeTaskId("billing-webhook_20260518-143052")).toBe(true);
+    expect(isSafeTaskId("billing_20260518-143052-2")).toBe(true); // -N suffix
+    expect(isSafeTaskId("café-münster_20260518-143052")).toBe(true); // non-ASCII
+    expect(isSafeTaskId(".env_20260518-143052")).toBe(true); // leading-dot slug
+    expect(isSafeTaskId("foo..bar_20260518-143052")).toBe(true); // embedded dots, not a token
+  });
+  it("rejects path traversal and separators", () => {
+    expect(isSafeTaskId("../../etc/passwd")).toBe(false);
+    expect(isSafeTaskId("..\\..\\secret")).toBe(false);
+    expect(isSafeTaskId("a/b")).toBe(false);
+    expect(isSafeTaskId("..")).toBe(false);
+    expect(isSafeTaskId(".")).toBe(false);
+    expect(isSafeTaskId("")).toBe(false);
+  });
+  it("rejects control characters (null byte, tab) that fs would throw on", () => {
+    expect(isSafeTaskId("foo\x00bar")).toBe(false);
+    expect(isSafeTaskId("foo\tbar")).toBe(false);
+  });
 });
 
 describe("formatStamp / buildTaskId", () => {
@@ -53,6 +82,9 @@ describe("formatStamp / buildTaskId", () => {
     expect(buildTaskId("billing webhook", fixed)).toBe(
       "billing-webhook_20260518-143052",
     );
+  });
+  it("produces an id that passes isSafeTaskId even for a control-char keyword", () => {
+    expect(isSafeTaskId(buildTaskId("a\x07b", fixed))).toBe(true);
   });
 });
 

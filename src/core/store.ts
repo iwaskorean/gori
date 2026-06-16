@@ -20,6 +20,9 @@ export const slugify = (keyword: string): string => {
     .toLowerCase()
     .replace(UNSAFE, "")
     .replace(/\s+/g, "-")
+    // Drop any leftover (non-whitespace) control chars so a generated id always
+    // passes isSafeTaskId; whitespace was already turned into hyphens above.
+    .replace(/[\x00-\x1f]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug || "task";
@@ -34,6 +37,15 @@ export const formatStamp = (now: Date): string =>
 
 export const buildTaskId = (keyword: string, now: Date): string =>
   `${slugify(keyword)}_${formatStamp(now)}`;
+
+// External callers (link/attach/reopen) supply a task id that becomes a path
+// segment. To stay inside the store it must contain no path separators, no
+// filesystem-reserved or control characters, and not be a relative-path token. (This
+// is a necessary guard, not a full id grammar — a harmless value like a stray
+// space simply fails to resolve.)
+const UNSAFE_SEGMENT = /[/\\:*?"<>|\x00-\x1f]/;
+export const isSafeTaskId = (id: string): boolean =>
+  id.length > 0 && !UNSAFE_SEGMENT.test(id) && id !== "." && id !== "..";
 
 /** "YYYY-MM-DD HH:mm:ss" — human-facing timestamp fields (seconds for ordering). */
 export const formatDisplay = (now: Date): string =>

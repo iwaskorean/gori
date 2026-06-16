@@ -350,6 +350,26 @@ describe("close / reopen (lifecycle)", () => {
   });
 });
 
+describe("path-traversal guard", () => {
+  const ESCAPE = "../../escape";
+
+  it("rejects link with a path-unsafe id before any lookup", async () => {
+    expect(errorOf(await link(B, { taskId: ESCAPE }, T2)).code).toBe(
+      "INVALID_TASK_ID",
+    );
+  });
+  it("rejects attach with a path-unsafe id", async () => {
+    expect(errorOf(await attach(A, { taskId: ESCAPE })).code).toBe(
+      "INVALID_TASK_ID",
+    );
+  });
+  it("rejects reopen with a path-unsafe id", async () => {
+    expect(errorOf(await reopen(A, { taskId: ESCAPE }, T2)).code).toBe(
+      "INVALID_TASK_ID",
+    );
+  });
+});
+
 describe("log (note channel)", () => {
   const readNote = (taskId: string): Promise<string> =>
     readFile(notePath(home, taskId), "utf8");
