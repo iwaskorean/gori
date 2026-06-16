@@ -1,6 +1,7 @@
-import { mkdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { sessionsDir } from "./env.js";
+import { writeFileAtomic } from "./store.js";
 import type { Meta, Side } from "./types.js";
 
 /** The task and side this session is bound to (sessions/<key>.txt). */
@@ -31,10 +32,9 @@ export const writeSession = async (
   binding: SessionBinding,
 ): Promise<void> => {
   await mkdir(sessionsDir(goriHome), { recursive: true });
-  await writeFile(
+  await writeFileAtomic(
     sessionFilePath(goriHome, key),
     `${binding.taskId}\t${binding.side}`,
-    "utf8",
   );
 };
 

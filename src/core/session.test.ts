@@ -1,7 +1,8 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sessionsDir } from "./env.js";
 import {
   clearSession,
   readSession,
@@ -58,6 +59,14 @@ describe("session file I/O (isolated)", () => {
 
   it("returns null for a missing session", async () => {
     expect(await readSession(home, "missing")).toBeNull();
+  });
+
+  it("leaves no temp file behind and round-trips the binding", async () => {
+    await writeSession(home, "k", { taskId: "t_1", side: "pair-A" });
+    // temp+rename leaves only the final file — a crash mid-write can't surface
+    // a half-written session line to a concurrent reader.
+    expect(await readdir(sessionsDir(home))).toEqual(["k.txt"]);
+    expect(await readSession(home, "k")).toEqual({ taskId: "t_1", side: "pair-A" });
   });
 
   it("returns null after clearSession (detach)", async () => {
