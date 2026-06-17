@@ -5,7 +5,7 @@ import {
   writeMeta,
   writeSpec,
 } from "../store.js";
-import { hasReservedHeading, nextId } from "../spec.js";
+import { findReservedHeadings, nextId } from "../spec.js";
 import type { Answered, Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
@@ -75,8 +75,10 @@ export const scope = async (
 ): Promise<Result<{ taskId: string }>> => {
   const text = input.text.trim();
   if (!text) return err("INVALID_INPUT", "scope text is required");
-  if (hasReservedHeading(text)) {
-    return err("INVALID_INPUT", "scope text must not contain a reserved spec heading");
+  const reserved = findReservedHeadings(text);
+  if (reserved.length > 0) {
+    const list = reserved.map((h) => `"${h}"`).join(", ");
+    return err("INVALID_INPUT", `scope text must not contain reserved spec headings: ${list}`);
   }
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   if (!binding) return err("NO_ACTIVE_TASK", "no active task to scope");

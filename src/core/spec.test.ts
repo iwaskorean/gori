@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   emptySpec,
-  hasReservedHeading,
+  findReservedHeadings,
   nextId,
   parseSpec,
   renderForRead,
@@ -134,12 +134,14 @@ describe("renderForRead", () => {
   });
 });
 
-describe("hasReservedHeading", () => {
-  it("detects a line that exactly equals a heading", () => {
-    expect(hasReservedHeading("intro\n## Answered\nmore")).toBe(true);
+describe("findReservedHeadings", () => {
+  it("returns every reserved heading in the text, in document order", () => {
+    expect(
+      findReservedHeadings("intro\n## Answered\nmid\n## pair-A Scope\nend"),
+    ).toEqual(["## pair-A Scope", "## Answered"]);
   });
 
-  it("ignores an indented or altered heading line", () => {
-    expect(hasReservedHeading("  ## Answered\n### Answered\n## answered")).toBe(false);
+  it("returns an empty array for indented or altered heading lines", () => {
+    expect(findReservedHeadings("  ## Answered\n### Answered\n## answered")).toEqual([]);
   });
 });

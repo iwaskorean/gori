@@ -123,7 +123,9 @@ describe("create", () => {
       { keyword: "one", scope: "## Answered\nsneaky" },
       T1,
     );
-    expect(errorOf(result).code).toBe("INVALID_INPUT");
+    const error = errorOf(result);
+    expect(error.code).toBe("INVALID_INPUT");
+    expect(error.message).toContain("## Answered"); // names the offending heading
     expect(await readSession(home, "keyA")).toBeNull(); // no task was created
   });
 });
@@ -503,11 +505,14 @@ describe("scope (spec channel)", () => {
     expect((await readSpec(home, taskId)).scopeA).toBe("second");
   });
 
-  it("rejects text containing a reserved heading", async () => {
+  it("rejects text containing reserved headings, naming each", async () => {
     await create(A, { keyword: "x" }, T1);
-    expect(
-      errorOf(await scope(A, { text: "intro\n## Answered\nmore" }, T2)).code,
-    ).toBe("INVALID_INPUT");
+    const error = errorOf(
+      await scope(A, { text: "## pair-A Scope\nintro\n## Answered\nmore" }, T2),
+    );
+    expect(error.code).toBe("INVALID_INPUT");
+    expect(error.message).toContain("## pair-A Scope");
+    expect(error.message).toContain("## Answered"); // every offender is listed
   });
 
   it("rejects a blank scope", async () => {

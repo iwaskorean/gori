@@ -42,13 +42,16 @@ export const SPEC_HEADINGS = [
 ] as const;
 
 /**
- * True when any line exactly equals a section heading. Verbs use this to reject
- * free-text input that would otherwise be mistaken for a section boundary on the
- * next parse. We guard rather than escape, mirroring the note channel's policy of
- * never transforming user content.
+ * Every reserved heading present in the text, in document order. Verbs use this
+ * to reject free-text input that would otherwise be mistaken for a section
+ * boundary on the next parse, and to name all offending headings in the error so
+ * the caller can fix them in one pass. We guard rather than escape, mirroring the
+ * note channel's policy of never transforming user content.
  */
-export const hasReservedHeading = (text: string): boolean =>
-  text.split("\n").some((line) => (SPEC_HEADINGS as readonly string[]).includes(line));
+export const findReservedHeadings = (text: string): string[] => {
+  const lines = new Set(text.split("\n"));
+  return SPEC_HEADINGS.filter((heading) => lines.has(heading));
+};
 
 export const emptySpec = (): SpecDoc => ({
   summary: "",

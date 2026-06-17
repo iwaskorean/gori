@@ -6,7 +6,7 @@ import {
   writeMeta,
   writeSpec,
 } from "../store.js";
-import { hasReservedHeading } from "../spec.js";
+import { findReservedHeadings } from "../spec.js";
 import { readSession, resolveSideByCwd, writeSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Meta, Result, Side } from "../types.js";
@@ -26,8 +26,10 @@ export const create = async (
   // Validate the optional scope before any writes so a bad scope can't leave a
   // half-initialized task behind.
   const scopeText = input.scope?.trim() ?? "";
-  if (scopeText && hasReservedHeading(scopeText)) {
-    return err("INVALID_INPUT", "scope text must not contain a reserved spec heading");
+  const reserved = scopeText ? findReservedHeadings(scopeText) : [];
+  if (reserved.length > 0) {
+    const list = reserved.map((h) => `"${h}"`).join(", ");
+    return err("INVALID_INPUT", `scope text must not contain reserved spec headings: ${list}`);
   }
 
   // Bootstrap guard: a directory already registered with an open task usually
