@@ -717,7 +717,7 @@ describe("list", () => {
     // is not a task directory, so reading tasks/.DS_Store/meta.yml fails with
     // ENOTDIR — list must skip it, not crash. The assertion guards the class
     // (any stray file), not this name in particular.
-    await writeFile(join(home, "tasks", ".DS_Store"), "  finder junk");
+    await writeFile(join(home, "tasks", ".DS_Store"), "\x00\x00finder junk");
 
     const { tasks } = unwrap(await list(A, T1));
     expect(tasks.map((t) => t.taskId)).toEqual([taskId]);
