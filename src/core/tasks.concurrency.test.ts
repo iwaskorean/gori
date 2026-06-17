@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readMeta, readNote, readSpec } from "./store.js";
-import { ask, create, link, log } from "./tasks.js";
+import { ask, create, link, log } from "./tasks/index.js";
 import type { Ctx, Result } from "./types.js";
 
 // These tests race verbs against each other in-process via Promise.all. The

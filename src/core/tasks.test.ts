@@ -20,7 +20,7 @@ import {
   reopen,
   scope,
   status,
-} from "./tasks.js";
+} from "./tasks/index.js";
 import type { Ctx, Meta, Result } from "./types.js";
 
 const ctxOf = (home: string, cwd: string, key: string): Ctx => ({

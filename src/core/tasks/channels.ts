@@ -1,0 +1,193 @@
+import {
+  appendNote,
+  formatDisplay,
+  readSpec,
+  writeMeta,
+  writeSpec,
+} from "../store.js";
+import { hasReservedHeading, nextId } from "../spec.js";
+import type { Answered, Question, SpecDoc } from "../spec.js";
+import { readSession, touchSession } from "../session.js";
+import { err, ok } from "../types.js";
+import type { Ctx, Result, Side } from "../types.js";
+import { markModified, withExistingTask } from "./shared.js";
+
+const NOTE_PROMOTION_LINE_THRESHOLD = 30;
+
+const partnerOf = (side: Side): Side => (side === "pair-A" ? "pair-B" : "pair-A");
+
+/** Collapse newlines and runs of whitespace to single spaces; answered is single-line. */
+const flatten = (text: string): string => text.replace(/\s+/g, " ").trim();
+
+/** Match by stable id (`#<id>`) or, failing that, a case-insensitive text substring. */
+const matchQuestions = (questions: Question[], ref: string): Question[] => {
+  const byId = /^#(\d+)$/.exec(ref);
+  if (byId) {
+    const id = Number(byId[1]);
+    return questions.filter((q) => q.id === id);
+  }
+  const needle = ref.toLowerCase();
+  return questions.filter((q) => q.text.toLowerCase().includes(needle));
+};
+
+// ---------- log (note channel) ----------
+
+/** Append a timestamped block to the active task's note timeline. */
+export const log = async (
+  ctx: Ctx,
+  input: { message: string },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string; suggestPromotion: boolean }>> => {
+  if (!input.message.trim()) return err("INVALID_INPUT", "message is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to log to");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  const block = `## ${at} [${binding.side}]\n\n${input.message}\n`;
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+      return ok({
+        taskId: meta.taskId,
+        suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
+      });
+    },
+  );
+};
+
+// ---------- scope (spec channel) ----------
+
+/**
+ * Set the current side's Scope in spec.md (skeleton created on first write).
+ * Returns SCOPE_EXISTS when a scope is already present and no mode was chosen, so
+ * the caller can offer append/replace/cancel — mirroring SIDE_AMBIGUOUS's
+ * "explicit choice needed" signal.
+ */
+export const scope = async (
+  ctx: Ctx,
+  input: { text: string; mode?: "append" | "replace" },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string }>> => {
+  const text = input.text.trim();
+  if (!text) return err("INVALID_INPUT", "scope text is required");
+  if (hasReservedHeading(text)) {
+    return err("INVALID_INPUT", "scope text must not contain a reserved spec heading");
+  }
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to scope");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
+      if (existing && !input.mode) {
+        return err("SCOPE_EXISTS", "scope already set; choose append or replace");
+      }
+      const next = existing && input.mode === "append" ? `${existing}\n${text}` : text;
+      const updated: SpecDoc =
+        binding.side === "pair-A" ? { ...doc, scopeA: next } : { ...doc, scopeB: next };
+      await writeSpec(ctx.goriHome, binding.taskId, updated);
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+      return ok({ taskId: meta.taskId });
+    },
+  );
+};
+
+// ---------- ask / answer (spec channel) ----------
+
+/** Add a question to the partner side's Open Questions with a fresh stable id. */
+export const ask = async (
+  ctx: Ctx,
+  input: { question: string },
+  now: Date = new Date(),
+): Promise<Result<{ id: number }>> => {
+  const question = input.question.trim();
+  if (!question) return err("INVALID_INPUT", "question is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to ask in");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
+      const updated: SpecDoc =
+        partnerOf(binding.side) === "pair-A"
+          ? { ...doc, openA: [...doc.openA, entry] }
+          : { ...doc, openB: [...doc.openB, entry] };
+      await writeSpec(ctx.goriHome, binding.taskId, updated);
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+      return ok({ id: entry.id });
+    },
+  );
+};
+
+/**
+ * Resolve a question in the current side's Open Questions, moving it to Answered.
+ * queueEmpty signals the caller to suggest closing (never auto-close) once this
+ * side's queue is drained — the same advisory pattern as log's suggestPromotion.
+ */
+export const answer = async (
+  ctx: Ctx,
+  input: { ref: string; answer: string },
+  now: Date = new Date(),
+): Promise<Result<{ id: number; queueEmpty: boolean }>> => {
+  const ref = input.ref.trim();
+  const answerText = input.answer.trim();
+  if (!ref) return err("INVALID_INPUT", "question reference is required");
+  if (!answerText) return err("INVALID_INPUT", "answer is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to answer in");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(
+    ctx.goriHome,
+    binding.taskId,
+    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    async (meta) => {
+      const doc = await readSpec(ctx.goriHome, binding.taskId);
+      const mine = binding.side === "pair-A" ? doc.openA : doc.openB;
+      const [target, ...rest] = matchQuestions(mine, ref);
+      if (!target) {
+        return err("INVALID_INPUT", `no open question matches: ${ref}`);
+      }
+      if (rest.length > 0) {
+        return err("INVALID_INPUT", `ambiguous question reference: ${ref}`);
+      }
+      const resolved: Answered = {
+        id: target.id,
+        asker: target.asker,
+        answerer: binding.side,
+        date: at,
+        question: flatten(target.text),
+        answer: flatten(answerText),
+      };
+      const remaining = mine.filter((q) => q.id !== target.id);
+      const withoutQuestion: SpecDoc =
+        binding.side === "pair-A"
+          ? { ...doc, openA: remaining }
+          : { ...doc, openB: remaining };
+      await writeSpec(ctx.goriHome, binding.taskId, {
+        ...withoutQuestion,
+        answered: [...doc.answered, resolved],
+      });
+      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+      return ok({ id: target.id, queueEmpty: remaining.length === 0 });
+    },
+  );
+};

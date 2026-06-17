@@ -5,4 +5,4 @@ export * from "./spec.js";
 export * from "./store.js";
 export * from "./lock.js";
 export * from "./session.js";
-export * from "./tasks.js";
+export * from "./tasks/index.js";
