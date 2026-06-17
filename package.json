@@ -1,13 +1,29 @@
 {
   "name": "gori",
-  "version": "0.0.0",
-  "description": "두 AI 코딩 세션을 실시간으로 잇는 페어링 브리지",
+  "version": "0.1.0",
+  "description": "Real-time pairing bridge linking two AI coding sessions as symmetric peers",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "pair-programming",
+    "cli",
+    "claude",
+    "agent"
+  ],
+  "homepage": "https://github.com/iwaskorean/gori#readme",
+  "bugs": "https://github.com/iwaskorean/gori/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iwaskorean/gori.git"
+  },
   "type": "module",
   "bin": {
     "gori": "./dist/cli/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "engines": {
     "node": ">=20"
@@ -17,7 +33,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "node dist/cli/index.js"
+    "start": "node dist/cli/index.js",
+    "prepublishOnly": "npm run build"
   },
   "license": "MIT",
   "devDependencies": {
