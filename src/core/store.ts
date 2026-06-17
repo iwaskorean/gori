@@ -134,7 +134,16 @@ export const readMeta = async (
   try {
     return metaFromYaml(await readFile(metaPath(goriHome, taskId), "utf8"));
   } catch (error) {
-    if (isErrnoException(error) && error.code === "ENOENT") return null;
+    // ENOENT: nothing at this path. ENOTDIR: something is there, but a path
+    // segment is a file where a directory is expected — e.g. a stray .DS_Store
+    // file sitting in tasks/ that readdir surfaced as a task id. Both mean
+    // "no task here", so report absence rather than letting the read throw.
+    if (
+      isErrnoException(error) &&
+      (error.code === "ENOENT" || error.code === "ENOTDIR")
+    ) {
+      return null;
+    }
     throw error;
   }
 };

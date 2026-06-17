@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, utimes } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -368,6 +368,17 @@ describe("path-traversal guard", () => {
       "INVALID_TASK_ID",
     );
   });
+
+  it("treats a safe id naming a stray file as not-found, not a crash", async () => {
+    // .DS_Store passes the safety guard (no separators, not "." or ".."), so
+    // the lookup proceeds and hits ENOTDIR on the stray file. readMeta maps
+    // that to null, so the verb reports TASK_NOT_FOUND instead of throwing.
+    unwrap(await create(A, { keyword: "real" }, T1)); // ensure tasks/ exists
+    await writeFile(join(home, "tasks", ".DS_Store"), "finder junk");
+    expect(errorOf(await link(B, { taskId: ".DS_Store" }, T2)).code).toBe(
+      "TASK_NOT_FOUND",
+    );
+  });
 });
 
 describe("log (note channel)", () => {
@@ -692,6 +703,19 @@ describe("list", () => {
 
     const { tasks } = unwrap(await list(A, T3));
     expect(tasks[0]?.openQuestionCounts).toEqual({ pairA: 1, pairB: 2 });
+  });
+
+  it("ignores a non-task entry in the tasks directory (e.g. a macOS .DS_Store file)", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "real" }, T1));
+
+    // macOS Finder drops a .DS_Store *file* into any folder it views. A file
+    // is not a task directory, so reading tasks/.DS_Store/meta.yml fails with
+    // ENOTDIR — list must skip it, not crash. The assertion guards the class
+    // (any stray file), not this name in particular.
+    await writeFile(join(home, "tasks", ".DS_Store"), "  finder junk");
+
+    const { tasks } = unwrap(await list(A, T1));
+    expect(tasks.map((t) => t.taskId)).toEqual([taskId]);
   });
 });
 
