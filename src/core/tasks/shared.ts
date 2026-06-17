@@ -35,6 +35,12 @@ export const markModified = (meta: Meta, by: Side, at: string): Meta => ({
 export const guardTaskId = (id: string): Result<never> | null =>
   isSafeTaskId(id) ? null : err("INVALID_TASK_ID", `invalid task id: ${id}`);
 
+/** Shared notFound for the existing-task RMW verbs: the bound task vanished before the verb ran. */
+export const ACTIVE_TASK_GONE: GoriError = {
+  code: "NO_ACTIVE_TASK",
+  message: "active task no longer exists",
+};
+
 /**
  * Read-modify-write an existing task under its lock. Pre-checks existence so the
  * task directory (and thus its lockfile) exists, re-checks inside the lock, and

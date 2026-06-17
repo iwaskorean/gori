@@ -10,7 +10,7 @@ import type { Answered, Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Result, Side } from "../types.js";
-import { markModified, withExistingTask } from "./shared.js";
+import { ACTIVE_TASK_GONE, markModified, withExistingTask } from "./shared.js";
 
 const NOTE_PROMOTION_LINE_THRESHOLD = 30;
 
@@ -48,7 +48,7 @@ export const log = async (
   return withExistingTask(
     ctx.goriHome,
     binding.taskId,
-    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    ACTIVE_TASK_GONE,
     async (meta) => {
       const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
       await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
@@ -88,7 +88,7 @@ export const scope = async (
   return withExistingTask(
     ctx.goriHome,
     binding.taskId,
-    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    ACTIVE_TASK_GONE,
     async (meta) => {
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
@@ -123,7 +123,7 @@ export const ask = async (
   return withExistingTask(
     ctx.goriHome,
     binding.taskId,
-    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    ACTIVE_TASK_GONE,
     async (meta) => {
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
@@ -160,7 +160,7 @@ export const answer = async (
   return withExistingTask(
     ctx.goriHome,
     binding.taskId,
-    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    ACTIVE_TASK_GONE,
     async (meta) => {
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const mine = binding.side === "pair-A" ? doc.openA : doc.openB;

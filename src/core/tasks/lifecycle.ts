@@ -10,7 +10,13 @@ import { findReservedHeadings } from "../spec.js";
 import { readSession, resolveSideByCwd, writeSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Meta, Result, Side } from "../types.js";
-import { guardTaskId, markModified, readAllMeta, withExistingTask } from "./shared.js";
+import {
+  ACTIVE_TASK_GONE,
+  guardTaskId,
+  markModified,
+  readAllMeta,
+  withExistingTask,
+} from "./shared.js";
 
 // ---------- create ----------
 
@@ -88,7 +94,7 @@ export const close = async (
   return withExistingTask(
     ctx.goriHome,
     binding.taskId,
-    { code: "NO_ACTIVE_TASK", message: "active task no longer exists" },
+    ACTIVE_TASK_GONE,
     async (meta) => {
       if (meta.status === "closed") {
         return err("ALREADY_CLOSED", "task is already closed");
