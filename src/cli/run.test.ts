@@ -124,6 +124,26 @@ describe("interactive selection", () => {
   });
 });
 
+describe("scope sub-sections", () => {
+  it("edits one ### section by heading via --section", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    await a.run(["create", "x"]);
+    await a.run(["scope", "### A\n\nalpha\n\n### B\n\nbeta"]);
+    expect(await a.run(["scope", "ALPHA2", "--section", "A", "--replace"])).toBe(0);
+    await a.run(["read", "spec"]);
+    expect(a.lastOut()).toContain("ALPHA2");
+    expect(a.lastOut()).toContain("beta");
+  });
+
+  it("exits 1 and names the available sections when the ref is unknown", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    await a.run(["create", "x"]);
+    await a.run(["scope", "### A\n\nalpha"]);
+    expect(await a.run(["scope", "x", "--section", "Z", "--replace"])).toBe(1);
+    expect(a.err.join("\n")).toContain("A");
+  });
+});
+
 describe("non-interactive (piped) sessions", () => {
   it("prints link candidates and exits 1 instead of hanging", async () => {
     const a = makeSession(home, "/work/api", "keyA");

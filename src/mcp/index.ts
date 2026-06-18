@@ -251,17 +251,34 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
     {
       description:
         "Set or update this side's scope in the shared spec. If a scope " +
-        "already exists, re-call with mode append or replace.",
+        "already exists, re-call with mode append or replace. To change one " +
+        "part of a large scope, target a `### ` sub-section with section " +
+        "instead of resending the whole scope.",
       inputSchema: {
-        text: z.string().describe("This side's work scope"),
+        text: z
+          .string()
+          .describe("This side's work scope, or the new body of the targeted section"),
         mode: z
           .enum(["append", "replace"])
           .optional()
-          .describe("How to combine with an existing scope"),
+          .describe("How to combine with an existing scope or section"),
+        section: z
+          .string()
+          .optional()
+          .describe(
+            "A `### ` sub-section heading to edit (exact, else substring); requires mode",
+          ),
       },
     },
-    async ({ text, mode }) =>
-      emit(await scope(ctx, { text, ...(mode && { mode }) }), formatScope),
+    async ({ text, mode, section }) =>
+      emit(
+        await scope(ctx, {
+          text,
+          ...(mode && { mode }),
+          ...(section !== undefined && { section }),
+        }),
+        formatScope,
+      ),
   );
 
   server.registerTool(

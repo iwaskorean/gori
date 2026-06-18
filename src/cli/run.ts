@@ -67,6 +67,16 @@ const asIndex = (arg: string): number | null =>
 const isSide = (value: string): value is Side =>
   value === "pair-A" || value === "pair-B";
 
+/** Pull a `--name value` pair out of args, returning the value and the rest. */
+const takeFlagValue = (
+  args: string[],
+  name: string,
+): { value: string | undefined; rest: string[] } => {
+  const i = args.indexOf(name);
+  if (i === -1) return { value: undefined, rest: args };
+  return { value: args[i + 1], rest: [...args.slice(0, i), ...args.slice(i + 2)] };
+};
+
 /** Run one verb invocation and return the process exit code. */
 export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => {
   const [verb = "", ...rest] = argv;
@@ -223,13 +233,21 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
   };
 
   const runScope = async (): Promise<number> => {
-    const text = positionals[0] ?? "";
+    const { value: section, rest: scopeArgs } = takeFlagValue(rest, "--section");
+    const text = scopeArgs.find((arg) => !arg.startsWith("--")) ?? "";
     const mode = flags.has("--append")
       ? ("append" as const)
       : flags.has("--replace")
         ? ("replace" as const)
         : undefined;
-    let result = await scope(deps.ctx, { text, ...(mode && { mode }) });
+    const input = {
+      text,
+      ...(mode && { mode }),
+      ...(section !== undefined && { section }),
+    };
+    let result = await scope(deps.ctx, input);
+    // SCOPE_EXISTS only fires on a whole-scope write, so the prompt re-runs the
+    // same input with the chosen mode.
     if (!result.ok && result.error.code === "SCOPE_EXISTS") {
       if (!deps.prompt) {
         deps.errOut(formatError(result.error));
@@ -240,8 +258,8 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       )
         .trim()
         .toLowerCase();
-      if (reply === "a") result = await scope(deps.ctx, { text, mode: "append" });
-      else if (reply === "r") result = await scope(deps.ctx, { text, mode: "replace" });
+      if (reply === "a") result = await scope(deps.ctx, { ...input, mode: "append" });
+      else if (reply === "r") result = await scope(deps.ctx, { ...input, mode: "replace" });
       else {
         deps.out("cancelled — scope unchanged");
         return 0;

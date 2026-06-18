@@ -76,9 +76,9 @@ const HELP: Record<Verb, VerbHelp> = {
     example: 'gori log "webhook endpoint deployed to staging"',
   },
   scope: {
-    signature: 'gori scope "<text>"',
-    summary: "set your side's Scope section in the shared spec",
-    example: 'gori scope "Own the API: routes, validation, signatures"',
+    signature: 'gori scope "<text>" [--append|--replace] [--section "<heading>"]',
+    summary: "set your side's Scope, or edit one ### sub-section with --section",
+    example: 'gori scope "renders the spec" --section "Rendering" --replace',
   },
   ask: {
     signature: 'gori ask "<question>"',

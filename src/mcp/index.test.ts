@@ -171,6 +171,31 @@ describe("remaining tool wiring", () => {
     expect(reopened.isError).toBe(false);
     expect(reopened.text).toContain("reopened");
   });
+
+  it("edits one scope sub-section through gori_scope section", async () => {
+    const a = await connectSession(home, "/work/api", "mcp-a");
+    await a.call("gori_create", { keyword: "x" });
+    await a.call("gori_scope", { text: "### A\n\nalpha\n\n### B\n\nbeta" });
+
+    const edited = await a.call("gori_scope", {
+      text: "ALPHA2",
+      section: "A",
+      mode: "replace",
+    });
+    expect(edited.isError).toBe(false);
+
+    const view = await a.call("gori_read", {});
+    expect(view.text).toContain("ALPHA2");
+    expect(view.text).toContain("beta");
+
+    const missing = await a.call("gori_scope", {
+      text: "x",
+      section: "Z",
+      mode: "replace",
+    });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toMatch(/^SECTION_NOT_FOUND: /);
+  });
 });
 
 describe("error responses", () => {
