@@ -140,6 +140,50 @@ describe("scope (spec channel)", () => {
     expect((await readSpec(home, taskId)).scopeA).toBe("second");
   });
 
+  it("replaces one ### sub-section, leaving the others intact", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await scope(A, { text: "### A\n\nalpha\n\n### B\n\nbeta" }, T2);
+    unwrap(await scope(A, { text: "ALPHA2", section: "A", mode: "replace" }, T3));
+    expect((await readSpec(home, taskId)).scopeA).toBe(
+      "### A\n\nALPHA2\n\n### B\n\nbeta",
+    );
+  });
+
+  it("appends to one ### sub-section", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await scope(A, { text: "### A\n\nalpha\n\n### B\n\nbeta" }, T2);
+    unwrap(await scope(A, { text: "more", section: "B", mode: "append" }, T3));
+    expect((await readSpec(home, taskId)).scopeA).toBe(
+      "### A\n\nalpha\n\n### B\n\nbeta\nmore",
+    );
+  });
+
+  it("returns SECTION_NOT_FOUND listing the available headings", async () => {
+    await create(A, { keyword: "x" }, T1);
+    await scope(A, { text: "### A\n\nalpha" }, T2);
+    const error = errorOf(
+      await scope(A, { text: "x", section: "Z", mode: "replace" }, T3),
+    );
+    expect(error.code).toBe("SECTION_NOT_FOUND");
+    expect(error.message).toContain('"A"');
+  });
+
+  it("returns SECTION_AMBIGUOUS when the ref matches more than one section", async () => {
+    await create(A, { keyword: "x" }, T1);
+    await scope(A, { text: "### Render core\n\nx\n\n### Render edge\n\ny" }, T2);
+    expect(
+      errorOf(await scope(A, { text: "z", section: "Render", mode: "replace" }, T3)).code,
+    ).toBe("SECTION_AMBIGUOUS");
+  });
+
+  it("requires an explicit mode when editing a section", async () => {
+    await create(A, { keyword: "x" }, T1);
+    await scope(A, { text: "### A\n\nalpha" }, T2);
+    expect(errorOf(await scope(A, { text: "x", section: "A" }, T3)).code).toBe(
+      "INVALID_INPUT",
+    );
+  });
+
   it("rejects text containing reserved headings, naming each", async () => {
     await create(A, { keyword: "x" }, T1);
     const error = errorOf(

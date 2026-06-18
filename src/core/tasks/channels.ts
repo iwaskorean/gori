@@ -5,7 +5,13 @@ import {
   writeMeta,
   writeSpec,
 } from "../store.js";
-import { findReservedHeadings, nextId } from "../spec.js";
+import {
+  findReservedHeadings,
+  matchScopeSections,
+  nextId,
+  parseScopeSections,
+  serializeScopeSections,
+} from "../spec.js";
 import type { Answered, Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
@@ -62,15 +68,57 @@ export const log = async (
 
 // ---------- scope (spec channel) ----------
 
+/** Whole-scope write: replace, or append a block. Existing text + no mode is ambiguous. */
+const editWholeScope = (
+  existing: string,
+  mode: "append" | "replace" | undefined,
+  text: string,
+): Result<string> => {
+  if (existing && !mode) {
+    return err("SCOPE_EXISTS", "scope already set; choose append or replace");
+  }
+  return ok(existing && mode === "append" ? `${existing}\n${text}` : text);
+};
+
+/**
+ * Edit one `### ` sub-section so a side need not resend the whole scope.
+ * Addressing mirrors answer's matchQuestions: not-found and ambiguous are
+ * surfaced with the available headings so the caller can disambiguate.
+ */
+const editScopeSection = (
+  existing: string,
+  ref: string,
+  mode: "append" | "replace" | undefined,
+  text: string,
+): Result<string> => {
+  if (!mode) return err("INVALID_INPUT", "choose append or replace to edit a section");
+  const parsed = parseScopeSections(existing);
+  const [index, ...rest] = matchScopeSections(parsed.sections, ref);
+  if (index === undefined) {
+    const headings = parsed.sections.map((s) => `"${s.heading}"`).join(", ");
+    const detail = headings ? `existing sections: ${headings}` : "the scope has no sections yet";
+    return err("SECTION_NOT_FOUND", `no scope section matches "${ref}"; ${detail}`);
+  }
+  if (rest.length > 0) {
+    const matched = [index, ...rest].map((i) => `"${parsed.sections[i]?.heading}"`).join(", ");
+    return err("SECTION_AMBIGUOUS", `"${ref}" matches multiple sections: ${matched}`);
+  }
+  const section = parsed.sections[index];
+  if (!section) return err("SECTION_NOT_FOUND", `no scope section matches "${ref}"`);
+  const body = mode === "append" && section.body ? `${section.body}\n${text}` : text;
+  parsed.sections[index] = { heading: section.heading, body };
+  return ok(serializeScopeSections(parsed));
+};
+
 /**
  * Set the current side's Scope in spec.md (skeleton created on first write).
- * Returns SCOPE_EXISTS when a scope is already present and no mode was chosen, so
- * the caller can offer append/replace/cancel — mirroring SIDE_AMBIGUOUS's
- * "explicit choice needed" signal.
+ * With `section`, edits one `### ` sub-section instead of the whole scope, so a
+ * side can change one part without resending all of it. Whole-scope writes
+ * return SCOPE_EXISTS when text already exists and no mode was chosen.
  */
 export const scope = async (
   ctx: Ctx,
-  input: { text: string; mode?: "append" | "replace" },
+  input: { text: string; mode?: "append" | "replace"; section?: string },
   now: Date = new Date(),
 ): Promise<Result<{ taskId: string }>> => {
   const text = input.text.trim();
@@ -80,6 +128,7 @@ export const scope = async (
     const list = reserved.map((h) => `"${h}"`).join(", ");
     return err("INVALID_INPUT", `scope text must not contain reserved spec headings: ${list}`);
   }
+  const sectionRef = input.section?.trim();
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   if (!binding) return err("NO_ACTIVE_TASK", "no active task to scope");
   await touchSession(ctx.goriHome, ctx.sessionKey);
@@ -92,12 +141,14 @@ export const scope = async (
     async (meta) => {
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
-      if (existing && !input.mode) {
-        return err("SCOPE_EXISTS", "scope already set; choose append or replace");
-      }
-      const next = existing && input.mode === "append" ? `${existing}\n${text}` : text;
+      const next = sectionRef
+        ? editScopeSection(existing, sectionRef, input.mode, text)
+        : editWholeScope(existing, input.mode, text);
+      if (!next.ok) return next;
       const updated: SpecDoc =
-        binding.side === "pair-A" ? { ...doc, scopeA: next } : { ...doc, scopeB: next };
+        binding.side === "pair-A"
+          ? { ...doc, scopeA: next.data }
+          : { ...doc, scopeB: next.data };
       await writeSpec(ctx.goriHome, binding.taskId, updated);
       await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({ taskId: meta.taskId });

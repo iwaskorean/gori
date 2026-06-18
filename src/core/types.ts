@@ -44,6 +44,8 @@ export type GoriErrorCode =
   | "ALREADY_CLOSED"
   | "ALREADY_OPEN"
   | "SCOPE_EXISTS"
+  | "SECTION_NOT_FOUND"
+  | "SECTION_AMBIGUOUS"
   | "CWD_IN_USE";
 
 /** Structured error; the CLI and MCP wrappers decide how to present it. */

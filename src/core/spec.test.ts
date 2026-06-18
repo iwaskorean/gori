@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   emptySpec,
   findReservedHeadings,
+  matchScopeSections,
   nextId,
+  parseScopeSections,
   parseSpec,
   renderForRead,
+  serializeScopeSections,
   serializeSpec,
 } from "./spec.js";
 import type { SpecDoc } from "./spec.js";
@@ -143,5 +146,89 @@ describe("findReservedHeadings", () => {
 
   it("returns an empty array for indented or altered heading lines", () => {
     expect(findReservedHeadings("  ## Answered\n### Answered\n## answered")).toEqual([]);
+  });
+});
+
+describe("scope sub-sections", () => {
+  it("treats a scope with no ### heading as preamble only", () => {
+    expect(parseScopeSections("Own the API.\nValidate signatures.")).toEqual({
+      preamble: "Own the API.\nValidate signatures.",
+      sections: [],
+    });
+  });
+
+  it("splits ### headings into sections, keeping leading text as preamble", () => {
+    const parsed = parseScopeSections(
+      [
+        "Overview line.",
+        "",
+        "### 6. Rendering",
+        "renders the spec",
+        "",
+        "### 7. Errors",
+        "error handling",
+      ].join("\n"),
+    );
+    expect(parsed).toEqual({
+      preamble: "Overview line.",
+      sections: [
+        { heading: "6. Rendering", body: "renders the spec" },
+        { heading: "7. Errors", body: "error handling" },
+      ],
+    });
+  });
+
+  it("keeps a heading with an empty body", () => {
+    expect(parseScopeSections("### Rendering")).toEqual({
+      preamble: "",
+      sections: [{ heading: "Rendering", body: "" }],
+    });
+  });
+
+  it("round-trips through serialize and back", () => {
+    const parsed = {
+      preamble: "Overview.",
+      sections: [
+        { heading: "Rendering", body: "renders\nthe spec" },
+        { heading: "Errors", body: "handles errors" },
+      ],
+    };
+    expect(parseScopeSections(serializeScopeSections(parsed))).toEqual(parsed);
+  });
+
+  it("is idempotent under re-serialization", () => {
+    const once = serializeScopeSections({
+      preamble: "",
+      sections: [{ heading: "Rendering", body: "body" }],
+    });
+    expect(serializeScopeSections(parseScopeSections(once))).toBe(once);
+  });
+
+  it("round-trips an empty scope to an empty string", () => {
+    expect(serializeScopeSections(parseScopeSections(""))).toBe("");
+  });
+});
+
+describe("matchScopeSections", () => {
+  const sections = [
+    { heading: "Rendering", body: "" },
+    { heading: "Rendering Details", body: "" },
+    { heading: "Errors", body: "" },
+  ];
+
+  it("prefers an exact heading match over substring matches", () => {
+    expect(matchScopeSections(sections, "Rendering")).toEqual([0]);
+  });
+
+  it("matches every section containing the ref as a substring", () => {
+    expect(matchScopeSections(sections, "Render")).toEqual([0, 1]);
+  });
+
+  it("is case-insensitive", () => {
+    expect(matchScopeSections(sections, "errors")).toEqual([2]);
+  });
+
+  it("returns an empty array when nothing matches", () => {
+    expect(matchScopeSections(sections, "deploy")).toEqual([]);
   });
 });

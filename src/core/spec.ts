@@ -219,3 +219,65 @@ export const renderForRead = (doc: SpecDoc): string => {
   }
   return sections.length > 0 ? `${sections.join("\n\n")}\n` : "";
 };
+
+// ---------- scope sub-sections ----------
+
+/**
+ * A scope body is free markdown, but `### ` lines optionally carve it into
+ * addressable sub-sections so a side can edit one part without resending the
+ * whole scope. The top-level `## ` headings stay reserved for the six channels
+ * (findReservedHeadings); `### ` lives one level below and is the user's to own.
+ * Text before the first `### ` is the preamble. A scope with no `### ` is just
+ * preamble — identical to today's opaque blob, so existing scopes keep working.
+ */
+export type ScopeSection = { heading: string; body: string };
+export type ParsedScope = { preamble: string; sections: ScopeSection[] };
+
+const SCOPE_SECTION_RE = /^### (.+)$/;
+
+export const parseScopeSections = (scope: string): ParsedScope => {
+  const preamble: string[] = [];
+  const sections: ScopeSection[] = [];
+  let current: { heading: string; body: string[] } | null = null;
+  const flush = () => {
+    if (current) sections.push({ heading: current.heading, body: trimBlank(current.body) });
+  };
+  for (const line of scope.split("\n")) {
+    const match = SCOPE_SECTION_RE.exec(line);
+    if (match) {
+      flush();
+      current = { heading: match[1] ?? "", body: [] };
+      continue;
+    }
+    if (current) current.body.push(line);
+    else preamble.push(line);
+  }
+  flush();
+  return { preamble: trimBlank(preamble), sections };
+};
+
+const scopeSectionBlock = ({ heading, body }: ScopeSection): string =>
+  body ? `### ${heading}\n\n${body}` : `### ${heading}`;
+
+export const serializeScopeSections = ({ preamble, sections }: ParsedScope): string => {
+  const blocks = sections.map(scopeSectionBlock);
+  return (preamble ? [preamble, ...blocks] : blocks).join("\n\n");
+};
+
+/**
+ * Indices of sections matching `ref`: an exact heading match (case-insensitive)
+ * wins outright; otherwise every case-insensitive substring match. Mirrors
+ * matchQuestions' "exact handle, else text substring" so the caller resolves
+ * not-found (empty) and ambiguous (length > 1) the same way.
+ */
+export const matchScopeSections = (sections: ScopeSection[], ref: string): number[] => {
+  const needle = ref.toLowerCase();
+  const exact: number[] = [];
+  const partial: number[] = [];
+  sections.forEach((section, index) => {
+    const heading = section.heading.toLowerCase();
+    if (heading === needle) exact.push(index);
+    else if (heading.includes(needle)) partial.push(index);
+  });
+  return exact.length > 0 ? exact : partial;
+};
