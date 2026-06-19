@@ -209,7 +209,7 @@ describe("idle GC (runs on list/status)", () => {
 
   it("collects a session file older than the idle window", async () => {
     unwrap(await create(A, { keyword: "x" }, T1));
-    const old = new Date(T1.getTime() - 8 * 24 * 60 * 60 * 1000);
+    const old = new Date(T1.getTime() - 15 * 24 * 60 * 60 * 1000);
     await utimes(sessionFilePath(home, "keyA"), old, old);
     await list(C, T1); // C triggers GC without touching keyA
     expect(await readSession(home, "keyA")).toBeNull();

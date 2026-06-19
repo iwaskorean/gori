@@ -5,7 +5,9 @@ import { readSession, sessionFilePath } from "../session.js";
 import { err } from "../types.js";
 import type { GoriError, Meta, Result, Side } from "../types.js";
 
-const GC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// Idle window for session pointers (sessions/*.txt), dropped on the next
+// list/status. Task data under tasks/ is never GC'd — only routing pointers.
+const GC_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const TXT = ".txt";
 
 // ---------- shared helpers ----------
