@@ -205,7 +205,7 @@ export const formatLog = (data: {
   const lines = [`${DONE} logged`];
   if (data.suggestPromotion) {
     lines.push(
-      detail(`${NEXT} the timeline is getting long — consider scope or ask to structure decisions`),
+      detail(`${NEXT} this note is your running log — put durable decisions in scope and raise open questions with ask`),
     );
   }
   return lines.join("\n");
