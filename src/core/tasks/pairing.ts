@@ -57,7 +57,7 @@ export const link = async (
   ctx: Ctx,
   input: { taskId: string },
   now: Date = new Date(),
-): Promise<Result<{ taskId: string }>> => {
+): Promise<Result<{ taskId: string; keyword: string }>> => {
   const bad = guardTaskId(input.taskId);
   if (bad) return bad;
   return withExistingTask(
@@ -88,7 +88,7 @@ export const link = async (
         taskId: meta.taskId,
         side: "pair-B",
       });
-      return ok({ taskId: meta.taskId });
+      return ok({ taskId: meta.taskId, keyword: meta.keyword });
     },
   );
 };
@@ -154,7 +154,12 @@ export const attach = async (
   ctx: Ctx,
   input: { taskId: string; side?: Side },
 ): Promise<
-  Result<{ taskId: string; side: Side; previousActive: string | null }>
+  Result<{
+    taskId: string;
+    keyword: string;
+    side: Side;
+    previousActive: string | null;
+  }>
 > => {
   const bad = guardTaskId(input.taskId);
   if (bad) return bad;
@@ -172,6 +177,7 @@ export const attach = async (
   await writeSession(ctx.goriHome, ctx.sessionKey, { taskId: meta.taskId, side });
   return ok({
     taskId: meta.taskId,
+    keyword: meta.keyword,
     side,
     previousActive: previous?.taskId ?? null,
   });

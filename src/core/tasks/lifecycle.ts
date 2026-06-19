@@ -25,7 +25,12 @@ export const create = async (
   input: { keyword: string; scope?: string; force?: boolean },
   now: Date = new Date(),
 ): Promise<
-  Result<{ taskId: string; previousActive: string | null; scopeRecorded: boolean }>
+  Result<{
+    taskId: string;
+    keyword: string;
+    previousActive: string | null;
+    scopeRecorded: boolean;
+  }>
 > => {
   const keyword = input.keyword.trim();
   if (!keyword) return err("INVALID_INPUT", "keyword is required");
@@ -77,6 +82,7 @@ export const create = async (
   }
   return ok({
     taskId,
+    keyword,
     previousActive: previous?.taskId ?? null,
     scopeRecorded: scopeText !== "",
   });
@@ -88,7 +94,7 @@ export const create = async (
 export const close = async (
   ctx: Ctx,
   now: Date = new Date(),
-): Promise<Result<{ taskId: string }>> => {
+): Promise<Result<{ taskId: string; keyword: string }>> => {
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   if (!binding) return err("NO_ACTIVE_TASK", "no active task to close");
   return withExistingTask(
@@ -103,7 +109,7 @@ export const close = async (
         ...markModified(meta, binding.side, formatDisplay(now)),
         status: "closed",
       });
-      return ok({ taskId: meta.taskId });
+      return ok({ taskId: meta.taskId, keyword: meta.keyword });
     },
   );
 };
@@ -113,7 +119,7 @@ export const reopen = async (
   ctx: Ctx,
   input: { taskId?: string },
   now: Date = new Date(),
-): Promise<Result<{ taskId: string; reattach: boolean }>> => {
+): Promise<Result<{ taskId: string; keyword: string; reattach: boolean }>> => {
   if (input.taskId !== undefined) {
     const bad = guardTaskId(input.taskId);
     if (bad) return bad;
@@ -139,7 +145,11 @@ export const reopen = async (
         ...markModified(meta, reopenerSide ?? meta.lastModifiedBy, formatDisplay(now)),
         status: "in-progress",
       });
-      return ok({ taskId: targetId, reattach: reopenerSide === null });
+      return ok({
+        taskId: targetId,
+        keyword: meta.keyword,
+        reattach: reopenerSide === null,
+      });
     },
   );
 };

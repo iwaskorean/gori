@@ -90,7 +90,7 @@ describe("two-session pairing flow", () => {
     // B discovers the candidate, then joins with the explicit id.
     const candidates = await b.call("gori_link");
     expect(candidates.isError).toBe(false);
-    expect(candidates.text).toContain('"billing webhook"');
+    expect(candidates.text).toContain("billing webhook");
     const taskId = /billing-webhook_[\d-]+/.exec(candidates.text)?.[0];
     expect(taskId).toBeDefined();
 
@@ -104,7 +104,7 @@ describe("two-session pairing flow", () => {
     // A sees the turn alert, reads the queue, and answers by stable id.
     const statusA = await a.call("gori_status");
     expect(statusA.text).toContain("🆕");
-    expect(statusA.text).toContain("session: mcp-a");
+    expect(statusA.text).toContain("mcp-a");
 
     const readA = await a.call("gori_read");
     expect(readA.text).toContain("Retry policy?");
@@ -156,7 +156,7 @@ describe("remaining tool wiring", () => {
     // A fresh server process for the same directory recovers via attach.
     const restarted = await connectSession(home, "/work/api", "mcp-a2");
     const candidates = await restarted.call("gori_attach");
-    expect(candidates.text).toContain('"wiring"');
+    expect(candidates.text).toContain("wiring");
     const taskId = /wiring_[\d-]+/.exec(candidates.text)?.[0];
     expect(taskId).toBeDefined();
     const attached = await restarted.call("gori_attach", { task_id: taskId });
@@ -164,7 +164,7 @@ describe("remaining tool wiring", () => {
     expect(attached.text).toContain("pair-A");
 
     const listed = await restarted.call("gori_list");
-    expect(listed.text).toContain('"wiring"');
+    expect(listed.text).toContain("wiring");
 
     await restarted.call("gori_close");
     const reopened = await restarted.call("gori_reopen", { task_id: taskId });

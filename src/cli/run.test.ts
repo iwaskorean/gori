@@ -151,7 +151,7 @@ describe("non-interactive (piped) sessions", () => {
     await a.run(["create", "x"]);
 
     expect(await b.run(["link"])).toBe(1);
-    expect(b.out.join("\n")).toContain('1. "x" — x_'); // candidates were shown
+    expect(b.out.join("\n")).toContain("1. x"); // candidates were shown
     expect(b.err.join("\n")).toContain("gori link <number|task-id>");
   });
 
@@ -177,7 +177,7 @@ describe("argument validation and errors", () => {
   it("routes core errors to stderr with exit 1", async () => {
     const a = makeSession(home, "/work/api", "keyA");
     expect(await a.run(["log", "no active task yet"])).toBe(1);
-    expect(a.err.join("\n")).toContain("gori: ");
+    expect(a.err.join("\n")).toContain("✗");
   });
 
   it("rejects an invalid read filter", async () => {

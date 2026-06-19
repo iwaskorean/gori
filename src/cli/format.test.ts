@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   formatAnswer,
   formatAttachCandidates,
+  formatClose,
   formatCreate,
   formatError,
+  formatLink,
   formatLinkCandidates,
   formatList,
   formatRead,
@@ -24,20 +26,22 @@ const activeOf = (overrides: Partial<ActiveStatus> = {}): ActiveStatus => ({
 });
 
 describe("formatError", () => {
-  it("prefixes the message with the program name", () => {
+  it("marks the message with a failure glyph", () => {
     expect(formatError({ code: "TASK_NOT_FOUND", message: "no such task: x" })).toBe(
-      "gori: no such task: x",
+      "✗ no such task: x",
     );
   });
 });
 
 describe("formatCreate", () => {
-  it("names the side and prompts the partner to link", () => {
+  it("leads with the keyword, names the side, and prompts the partner to link", () => {
     const text = formatCreate({
       taskId: "x_20260101-100000",
+      keyword: "billing",
       previousActive: null,
       scopeRecorded: false,
     });
+    expect(text).toContain("created  billing");
     expect(text).toContain("pair-A");
     expect(text).toContain("links to this task");
     expect(text).not.toContain("switched");
@@ -46,19 +50,29 @@ describe("formatCreate", () => {
 
   it("mentions the task the session switched away from", () => {
     expect(
-      formatCreate({ taskId: "b_2", previousActive: "a_1", scopeRecorded: false }),
+      formatCreate({
+        taskId: "b_2",
+        keyword: "b",
+        previousActive: "a_1",
+        scopeRecorded: false,
+      }),
     ).toContain("switched from a_1");
   });
 
   it("confirms an initial scope was recorded", () => {
     expect(
-      formatCreate({ taskId: "b_2", previousActive: null, scopeRecorded: true }),
+      formatCreate({
+        taskId: "b_2",
+        keyword: "b",
+        previousActive: null,
+        scopeRecorded: true,
+      }),
     ).toContain("scope recorded");
   });
 });
 
 describe("formatLinkCandidates", () => {
-  it("numbers candidates and marks notes and same-directory", () => {
+  it("numbers candidates, demotes the id, and marks notes and same-directory", () => {
     const text = formatLinkCandidates([
       {
         taskId: "x_1",
@@ -70,19 +84,30 @@ describe("formatLinkCandidates", () => {
         sameDir: true,
       },
     ]);
-    expect(text).toContain('1. "x" — x_1');
+    expect(text).toContain("1. x");
+    expect(text).toContain("x_1");
     expect(text).toContain("has notes");
     expect(text).toContain("⚠ same directory");
   });
 });
 
 describe("formatAttachCandidates", () => {
-  it("spells out an ambiguous side", () => {
+  it("spells out an ambiguous side and shows the id", () => {
     const text = formatAttachCandidates([
       { taskId: "x_1", keyword: "x", side: "ambiguous", lastModifiedAt: "t" },
     ]);
-    expect(text).toContain('"x" — x_1');
+    expect(text).toContain("1. x");
+    expect(text).toContain("x_1");
     expect(text).toContain("side ambiguous");
+  });
+});
+
+describe("formatLink", () => {
+  it("leads with the partner's keyword and names the side", () => {
+    const text = formatLink({ taskId: "x_1", keyword: "billing" });
+    expect(text).toContain("paired with billing");
+    expect(text).toContain("pair-B");
+    expect(text).toContain("x_1");
   });
 });
 
@@ -103,17 +128,24 @@ describe("formatList", () => {
     expect(formatList([])).toContain("create a task");
   });
 
-  it("marks the active task and shows open counts only when present", () => {
+  it("marks the active task with a glyph and shows open counts only when present", () => {
     const text = formatList([
-      summaryOf({ isActive: true, openQuestionCounts: { pairA: 1, pairB: 0 } }),
-      summaryOf({ taskId: "y_2" }),
+      summaryOf({
+        keyword: "alpha",
+        isActive: true,
+        openQuestionCounts: { pairA: 1, pairB: 0 },
+      }),
+      summaryOf({ keyword: "beta", taskId: "y_2" }),
     ]);
-    const [first = "", second = ""] = text.split("\n");
-    expect(first.startsWith('1. "x" (active) — x_1')).toBe(true);
-    expect(first).toContain("open: pair-A 1");
-    expect(second.startsWith('2. "x" — y_2')).toBe(true);
-    expect(second).not.toContain("(active)");
-    expect(second).not.toContain("open:");
+    expect(text).toContain("● alpha");
+    expect(text).toContain("(active)");
+    expect(text).toContain("pair-A 1");
+    expect(text).toContain("x_1");
+
+    const betaLine =
+      text.split("\n").find((line) => line.includes("2. beta")) ?? "";
+    expect(betaLine).not.toContain("(active)");
+    expect(betaLine).not.toContain("●");
   });
 });
 
@@ -134,28 +166,36 @@ describe("formatStatus", () => {
       "agent-f50cf907",
     );
     expect(text).toContain("🆕");
-    expect(text).toContain("for you: 1");
-    expect(text).toContain("for partner: 2");
+    expect(text).toContain("you 1");
+    expect(text).toContain("partner 2");
   });
 
   it("always exposes the session key for pairing diagnostics", () => {
     // Two sessions sharing one key broke pairing and was undiagnosable from
     // CLI output; the key line lets a W0-style check compare sessions directly.
-    expect(formatStatus(null, "agent-f50cf907")).toContain(
-      "session: agent-f50cf907",
-    );
-    expect(formatStatus(activeOf(), "tmux-3")).toContain("session: tmux-3");
+    const text = formatStatus(null, "agent-f50cf907");
+    expect(text).toContain("session");
+    expect(text).toContain("agent-f50cf907");
+    expect(formatStatus(activeOf(), "tmux-3")).toContain("tmux-3");
+  });
+});
+
+describe("formatClose", () => {
+  it("leads with the keyword and shows the id", () => {
+    const text = formatClose({ taskId: "x_1", keyword: "billing" });
+    expect(text).toContain("closed billing");
+    expect(text).toContain("x_1");
   });
 });
 
 describe("formatReopen", () => {
-  it("tells an unbound session how to attach", () => {
-    expect(formatReopen({ taskId: "x_1", reattach: true })).toContain(
-      "attach to x_1",
-    );
-    expect(formatReopen({ taskId: "x_1", reattach: false })).not.toContain(
-      "attach",
-    );
+  it("tells an unbound session to attach, and stays quiet when bound", () => {
+    expect(
+      formatReopen({ taskId: "x_1", keyword: "x", reattach: true }),
+    ).toContain("attach");
+    expect(
+      formatReopen({ taskId: "x_1", keyword: "x", reattach: false }),
+    ).not.toContain("attach");
   });
 });
 
