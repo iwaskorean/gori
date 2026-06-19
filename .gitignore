@@ -6,6 +6,7 @@ dist/
 
 # local planning docs — never tracked
 /README.md
+/REVIEW_NOTES.md
 /ROADMAP.md
 /SPEC.md
 /PLAN.md

@@ -29,6 +29,7 @@ import {
   resolveGoriHome,
   scope,
   status,
+  VERSION,
 } from "../core/index.js";
 import type { Ctx, GoriError, Result } from "../core/index.js";
 import {
@@ -84,7 +85,7 @@ const emit = <T>(result: Result<T>, format: (data: T) => string): ToolResult =>
 /** Build the server around an injected Ctx so tests can run it in-process. */
 export const buildMcpServer = (ctx: Ctx): McpServer => {
   const server = new McpServer(
-    { name: "gori", version: "0.0.0" },
+    { name: "gori", version: VERSION },
     { instructions: INSTRUCTIONS },
   );
 

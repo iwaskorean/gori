@@ -23,6 +23,16 @@ const main = async (): Promise<void> => {
     return;
   }
 
+  if (argv[0] === "setup") {
+    const { createSetupDeps, runSetup } = await import("./setup.js");
+    const deps = createSetupDeps({
+      out: (text) => console.log(text),
+      errOut: (text) => console.error(text),
+    });
+    process.exitCode = runSetup(argv[1], deps);
+    return;
+  }
+
   const deps: CliDeps = {
     ctx: buildCliCtx(),
     out: (text) => console.log(text),

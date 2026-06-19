@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runCli } from "./run.js";
 import type { CliDeps } from "./run.js";
+import { VERSION } from "../core/index.js";
 
 /**
  * An in-process CLI session: captured output, scripted prompt replies, and a
@@ -192,6 +193,15 @@ describe("argument validation and errors", () => {
     expect(a.lastOut()).toContain("session / task:");
     expect(await a.run(["help", "answer"])).toBe(0);
     expect(a.lastOut()).toContain("gori answer");
+  });
+
+  it("prints the package version for --version and -v", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
+    expect(await a.run(["--version"])).toBe(0);
+    expect(a.lastOut()).toBe(VERSION);
+    expect(await a.run(["-v"])).toBe(0);
+    expect(a.lastOut()).toBe(VERSION);
   });
 });
 

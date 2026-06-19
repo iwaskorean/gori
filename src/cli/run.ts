@@ -22,6 +22,7 @@ import {
   reopen,
   scope,
   status,
+  VERSION,
 } from "../core/index.js";
 import type { Ctx, GoriError, Result, Side } from "../core/index.js";
 import {
@@ -282,6 +283,10 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
 
   if (!verb || verb === "--help" || verb === "-h") {
     deps.out(renderHelpOverview());
+    return 0;
+  }
+  if (verb === "--version" || verb === "-v") {
+    deps.out(VERSION);
     return 0;
   }
   if (verb === "help") {

@@ -19,13 +19,7 @@ import type {
   ReadView,
   TaskSummary,
 } from "../core/index.js";
-
-const DONE = "✓";
-const FAIL = "✗";
-const NEXT = "→";
-const ACTIVE = "●";
-const ALERT = "🆕";
-const WARN = "⚠";
+import { ACTIVE, ALERT, DONE, FAIL, NEXT, WARN } from "./glyphs.js";
 
 /** The partner-changed alert, shared by status and read so the two can't drift. */
 const PARTNER_CHANGED = `${ALERT} partner made the last change`;

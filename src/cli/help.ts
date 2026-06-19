@@ -106,7 +106,7 @@ export const renderHelpOverview = (): string => {
   const lines = [
     "gori — a live pairing bridge between two AI sessions",
     "",
-    "Usage: gori <verb> [args]   ·   gori mcp  (start the stdio MCP server)",
+    "Usage: gori <verb> [args]",
   ];
   for (const { title, verbs } of CATEGORIES) {
     lines.push("", `${title}:`);
@@ -114,6 +114,12 @@ export const renderHelpOverview = (): string => {
       lines.push(`  ${verb.padEnd(8)} ${HELP[verb].summary}`);
     }
   }
+  lines.push(
+    "",
+    "setup / server:",
+    "  gori setup --claude   register the MCP server + install the /gori skill (re-run to update)",
+    "  gori mcp              start the stdio MCP server",
+  );
   return lines.join("\n");
 };
 
