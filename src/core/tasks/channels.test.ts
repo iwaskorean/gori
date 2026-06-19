@@ -2,7 +2,7 @@ import { readFile, rm, stat, utimes } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { notePath, readMeta, readSpec } from "../store.js";
 import { sessionFilePath } from "../session.js";
-import { answer, ask, create, link, log, scope } from "./index.js";
+import { answer, ask, close, create, link, log, scope } from "./index.js";
 import type { Ctx } from "../types.js";
 import { errorOf, freshTaskEnv, unwrap, T1, T2, T3 } from "./test-helpers.js";
 
@@ -81,6 +81,14 @@ describe("log (note channel)", () => {
   it("rejects logging with no active task", async () => {
     expect(errorOf(await log(C, { message: "hi" }, T1)).code).toBe(
       "NO_ACTIVE_TASK",
+    );
+  });
+
+  it("rejects logging on a closed task", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    unwrap(await close(A, T2));
+    expect(errorOf(await log(A, { message: "hi" }, T3)).code).toBe(
+      "ALREADY_CLOSED",
     );
   });
 
@@ -207,6 +215,14 @@ describe("scope (spec channel)", () => {
     );
   });
 
+  it("rejects scoping on a closed task", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    unwrap(await close(A, T2));
+    expect(errorOf(await scope(A, { text: "hi" }, T3)).code).toBe(
+      "ALREADY_CLOSED",
+    );
+  });
+
   it("updates meta last-modified to the scoping side", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2); // last modified by B
@@ -246,6 +262,14 @@ describe("ask (spec channel)", () => {
   it("rejects asking with no active task", async () => {
     expect(errorOf(await ask(C, { question: "hi?" }, T1)).code).toBe(
       "NO_ACTIVE_TASK",
+    );
+  });
+
+  it("rejects asking on a closed task", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    unwrap(await close(A, T2));
+    expect(errorOf(await ask(A, { question: "q?" }, T3)).code).toBe(
+      "ALREADY_CLOSED",
     );
   });
 });
@@ -334,6 +358,16 @@ describe("answer (spec channel)", () => {
   it("rejects answering with no active task", async () => {
     expect(errorOf(await answer(C, { ref: "#1", answer: "x" }, T1)).code).toBe(
       "NO_ACTIVE_TASK",
+    );
+  });
+
+  it("rejects answering on a closed task, even with a matching question", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2);
+    await ask(A, { question: "q?" }, T3); // lands in B's queue as #1
+    unwrap(await close(A, T3));
+    expect(errorOf(await answer(B, { ref: "#1", answer: "x" }, T3)).code).toBe(
+      "ALREADY_CLOSED",
     );
   });
 

@@ -16,7 +16,12 @@ import type { Answered, Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Result, Side } from "../types.js";
-import { ACTIVE_TASK_GONE, markModified, withExistingTask } from "./shared.js";
+import {
+  ACTIVE_TASK_GONE,
+  markModified,
+  rejectIfClosed,
+  withExistingTask,
+} from "./shared.js";
 
 const NOTE_PROMOTION_LINE_THRESHOLD = 30;
 
@@ -56,6 +61,8 @@ export const log = async (
     binding.taskId,
     ACTIVE_TASK_GONE,
     async (meta) => {
+      const rejection = rejectIfClosed(meta);
+      if (rejection) return rejection;
       const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
       await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
       return ok({
@@ -139,6 +146,8 @@ export const scope = async (
     binding.taskId,
     ACTIVE_TASK_GONE,
     async (meta) => {
+      const rejection = rejectIfClosed(meta);
+      if (rejection) return rejection;
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
       const next = sectionRef
@@ -176,6 +185,8 @@ export const ask = async (
     binding.taskId,
     ACTIVE_TASK_GONE,
     async (meta) => {
+      const rejection = rejectIfClosed(meta);
+      if (rejection) return rejection;
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
       const updated: SpecDoc =
@@ -213,6 +224,8 @@ export const answer = async (
     binding.taskId,
     ACTIVE_TASK_GONE,
     async (meta) => {
+      const rejection = rejectIfClosed(meta);
+      if (rejection) return rejection;
       const doc = await readSpec(ctx.goriHome, binding.taskId);
       const mine = binding.side === "pair-A" ? doc.openA : doc.openB;
       const [target, ...rest] = matchQuestions(mine, ref);

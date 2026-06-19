@@ -35,6 +35,12 @@ export const markModified = (meta: Meta, by: Side, at: string): Meta => ({
 export const guardTaskId = (id: string): Result<never> | null =>
   isSafeTaskId(id) ? null : err("INVALID_TASK_ID", `invalid task id: ${id}`);
 
+/** Reject a mutation or link targeting a closed task — the caller must reopen it first. */
+export const rejectIfClosed = (meta: Meta): Result<never> | null =>
+  meta.status === "closed"
+    ? err("ALREADY_CLOSED", "task is closed; reopen it first")
+    : null;
+
 /** Shared notFound for the existing-task RMW verbs: the bound task vanished before the verb ran. */
 export const ACTIVE_TASK_GONE: GoriError = {
   code: "NO_ACTIVE_TASK",

@@ -7,7 +7,12 @@ import {
 } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Meta, Result, Side } from "../types.js";
-import { guardTaskId, readAllMeta, withExistingTask } from "./shared.js";
+import {
+  guardTaskId,
+  readAllMeta,
+  rejectIfClosed,
+  withExistingTask,
+} from "./shared.js";
 
 // ---------- link (pairing) ----------
 
@@ -60,6 +65,8 @@ export const link = async (
     input.taskId,
     { code: "TASK_NOT_FOUND", message: `no such task: ${input.taskId}` },
     async (meta) => {
+      const rejection = rejectIfClosed(meta);
+      if (rejection) return rejection;
       const session = await readSession(ctx.goriHome, ctx.sessionKey);
       if (meta.pairB.dir !== null) {
         return err("NO_PAIRABLE_TASK", "task is already paired");

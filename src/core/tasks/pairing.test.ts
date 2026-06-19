@@ -6,6 +6,7 @@ import { readSession } from "../session.js";
 import {
   attach,
   attachCandidates,
+  close,
   create,
   detach,
   link,
@@ -71,6 +72,12 @@ describe("link (pairing)", () => {
     expect(errorOf(await link(B, { taskId: "ghost_20260101-000000" })).code).toBe(
       "TASK_NOT_FOUND",
     );
+  });
+
+  it("rejects pairing into a closed task", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    unwrap(await close(A, T2));
+    expect(errorOf(await link(B, { taskId }, T3)).code).toBe("ALREADY_CLOSED");
   });
 
   it("rejects pairing with a task this session started", async () => {
