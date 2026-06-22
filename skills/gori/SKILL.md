@@ -1,6 +1,6 @@
 ---
 name: gori
-description: Real-time pairing bridge between two AI sessions working on one task across separate repos or directories (e.g. backend + frontend on one change). Engage when this session needs a partner session to share scope, decisions, and open questions, or when the user mentions gori or pairing. Drives the gori_* MCP tools, falling back to the `gori` CLI.
+description: A pairing bridge between two AI sessions working on one task across separate repos, directories, or contexts (e.g. backend + frontend on one change). Engage when this session needs a partner session to share scope, decisions, and open questions, or when the user mentions gori or pairing. Drives the gori_* MCP tools, falling back to the `gori` CLI.
 ---
 
 # gori — pairing bridge
@@ -14,8 +14,16 @@ Prefer the `gori_*` MCP tools. If they are not available, run the `gori <verb>` 
 ## Core flow
 
 - Begin by calling `gori_status`. If it shows 🆕 (the partner made the last change), call `gori_read` to catch up before acting.
-- Record meaningful progress, decisions, and blockers with `gori_log`.
+- Log progress as it happens with `gori_log`.
 - Ask about the partner's side with `gori_ask`; answer the questions waiting on you with `gori_answer`.
+
+## Which channel
+
+Three channels, three jobs — don't record the same thing in two:
+
+- **`gori_log`** — a running log of what happened, in order. Cheap, append-only.
+- **`gori_scope`** — durable decisions and your side's boundary. Re-edit a `### ` sub-section in place as they change; don't restate a decision as a fresh log line.
+- **`gori_ask` / `gori_answer`** — open questions you need the partner to resolve, tracked by stable `#id`.
 
 ## Connecting to a task — pick the right verb
 

@@ -20,7 +20,7 @@ Use `force` only to deliberately start a second task in the same directory.
 
 ## note to spec promotion
 
-The `log` timeline is for points in the flow; the spec is for structured decisions. When `gori_log` reports the timeline is getting long (around 30 lines), move durable decisions into `gori_scope`, or raise open questions with `gori_ask`.
+The `log` is a running log for points in the flow; durable decisions live in the spec. When `gori_log` reports the timeline is getting long (around 30 lines), move durable decisions into `gori_scope`, or raise open questions with `gori_ask`.
 
 ## Natural-language triggers (non-Claude-Code agents)
 

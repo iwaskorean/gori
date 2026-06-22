@@ -59,10 +59,15 @@ const INSTRUCTIONS = [
   "  to catch up on the partner's changes.",
   "- One side starts a task with gori_create (keyword + your scope in one",
   "  call); the partner joins it with gori_link.",
-  "- Record meaningful progress, decisions, and blockers with gori_log.",
+  "- Log progress as it happens with gori_log.",
   "- Ask questions about the partner's territory with gori_ask; answer the",
   "  questions waiting on you with gori_answer.",
   "- Close the task with gori_close when both sides agree it is done.",
+  "",
+  "Which channel: gori_log is a running log of what happened, in order;",
+  "gori_scope holds durable decisions and your side's boundary, re-edited in",
+  "place as they change; gori_ask raises open questions for the partner. Put a",
+  "decision in scope, not a fresh log line — don't write the same thing twice.",
 ].join("\n");
 
 type ToolResult = {
@@ -238,8 +243,9 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
     "gori_log",
     {
       description:
-        "Append a timeline note to the active task. Use for meaningful " +
-        "progress, decisions, and blockers — one or two sentences.",
+        "Append a note to the running log — what happened, in order, one or " +
+        "two sentences. Put durable decisions in gori_scope and open questions " +
+        "in gori_ask rather than only logging them.",
       inputSchema: {
         message: z.string().describe("What happened, in one or two sentences"),
       },
@@ -251,10 +257,11 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
     "gori_scope",
     {
       description:
-        "Set or update this side's scope in the shared spec. If a scope " +
-        "already exists, re-call with mode append or replace. To change one " +
-        "part of a large scope, target a `### ` sub-section with section " +
-        "instead of resending the whole scope.",
+        "Set or update this side's scope in the shared spec — the durable home " +
+        "for decisions and boundaries, not the log. If a scope already exists, " +
+        "re-call with mode append or replace. To change one part of a large " +
+        "scope, target a `### ` sub-section with section instead of resending " +
+        "the whole scope.",
       inputSchema: {
         text: z
           .string()
