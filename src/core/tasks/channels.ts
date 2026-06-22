@@ -166,6 +166,9 @@ export const scope = async (
 };
 
 // ---------- ask / answer (spec channel) ----------
+// Unlike scope, ask/answer need no reserved-heading guard: their text is stored
+// line-prefixed (`- [ ] [#id] ...`) with 2-space continuation, so it can never
+// be parsed as a `## ` section boundary on the next read.
 
 /** Add a question to the partner side's Open Questions with a fresh stable id. */
 export const ask = async (

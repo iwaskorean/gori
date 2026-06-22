@@ -45,8 +45,10 @@ export const SPEC_HEADINGS = [
  * Every reserved heading present in the text, in document order. Verbs use this
  * to reject free-text input that would otherwise be mistaken for a section
  * boundary on the next parse, and to name all offending headings in the error so
- * the caller can fix them in one pass. We guard rather than escape, mirroring the
- * note channel's policy of never transforming user content.
+ * the caller can fix them in one pass. We guard rather than escape, preserving
+ * scope and question text verbatim like the note channel — the one deliberate
+ * exception is an answered entry, which channels' `flatten` collapses to a
+ * single line.
  */
 export const findReservedHeadings = (text: string): string[] => {
   const lines = new Set(text.split("\n"));
