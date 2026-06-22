@@ -4,8 +4,11 @@ dist/
 *.tsbuildinfo
 .DS_Store
 
-# local planning docs — never tracked
+# README files become public at repo setup (un-ignore + git add then);
+# kept untracked for now to avoid a premature commit.
 /README.md
+
+# local planning docs — never tracked
 /REVIEW_NOTES.md
 /ROADMAP.md
 /SPEC.md
