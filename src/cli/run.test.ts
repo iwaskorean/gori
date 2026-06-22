@@ -244,3 +244,13 @@ describe("create with an initial scope", () => {
     expect(a.lastOut()).toContain("BE: webhook endpoint");
   });
 });
+
+describe("dashed text arguments", () => {
+  it("records a message starting with -- as text, not a flag", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    expect(await a.run(["create", "task one"])).toBe(0);
+    expect(await a.run(["log", "--watch flag deprecated"])).toBe(0);
+    expect(await a.run(["read", "log"])).toBe(0);
+    expect(a.lastOut()).toContain("--watch flag deprecated");
+  });
+});

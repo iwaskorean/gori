@@ -56,7 +56,7 @@ export const create = async (
       return err(
         "CWD_IN_USE",
         `this directory already belongs to an in-progress task: ${ids} — ` +
-          "reconnect with `gori attach`, or re-run with --force to start another",
+          "attach to it instead, or force a new task to start another here",
       );
     }
   }

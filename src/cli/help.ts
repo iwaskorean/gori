@@ -102,6 +102,32 @@ const HELP: Record<Verb, VerbHelp> = {
   },
 };
 
+// Non-verb help topics: subcommands that have no core verb but are still valid
+// `gori help <topic>` subjects. The overview's setup/server block renders from
+// this same source, so the two cannot drift.
+const TOPIC_NAMES = ["setup", "mcp"] as const;
+type TopicName = (typeof TOPIC_NAMES)[number];
+
+const TOPICS: Record<TopicName, VerbHelp> = {
+  setup: {
+    signature: "gori setup --claude",
+    summary:
+      "register the MCP server (user scope) and install the /gori skill; " +
+      "re-run to update",
+    example: "gori setup --claude",
+  },
+  mcp: {
+    signature: "gori mcp",
+    summary:
+      "start the stdio MCP server (one process = one session); " +
+      "register it with `gori setup --claude`",
+    example: "gori mcp",
+  },
+};
+
+const isTopic = (name: string): name is TopicName =>
+  (TOPIC_NAMES as readonly string[]).includes(name);
+
 export const renderHelpOverview = (): string => {
   const lines = [
     "gori — a live pairing bridge between two AI sessions",
@@ -114,19 +140,22 @@ export const renderHelpOverview = (): string => {
       lines.push(`  ${verb.padEnd(8)} ${HELP[verb].summary}`);
     }
   }
-  lines.push(
-    "",
-    "setup / server:",
-    "  gori setup --claude   register the MCP server + install the /gori skill (re-run to update)",
-    "  gori mcp              start the stdio MCP server",
-  );
+  lines.push("", "setup / server:");
+  for (const topic of TOPIC_NAMES) {
+    const { signature, summary } = TOPICS[topic];
+    lines.push(`  ${signature.padEnd(21)} ${summary}`);
+  }
   return lines.join("\n");
 };
 
-/** Detailed help for one verb, or null when the name is not a verb. */
+/** Detailed help for one verb or topic, or null when the name is neither. */
 export const renderVerbHelp = (name: string): string | null => {
-  if (!(VERBS as readonly string[]).includes(name)) return null;
-  const entry = HELP[name as Verb];
+  const entry = (VERBS as readonly string[]).includes(name)
+    ? HELP[name as Verb]
+    : isTopic(name)
+      ? TOPICS[name]
+      : undefined;
+  if (!entry) return null;
   return [entry.signature, `  ${entry.summary}`, `  e.g. ${entry.example}`].join("\n");
 };
 

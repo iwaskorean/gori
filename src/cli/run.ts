@@ -62,6 +62,11 @@ export type CliDeps = {
 const isVerb = (value: string): value is Verb =>
   (VERBS as readonly string[]).includes(value);
 
+// The only real flags. Any other dashed token is treated as positional text, so
+// a message, scope body, question, or answer may itself start with "--".
+const KNOWN_FLAGS = new Set(["--force", "--append", "--replace", "--section"]);
+const isFlag = (arg: string): boolean => KNOWN_FLAGS.has(arg);
+
 const asIndex = (arg: string): number | null =>
   /^\d+$/.test(arg) ? Number(arg) : null;
 
@@ -81,8 +86,8 @@ const takeFlagValue = (
 /** Run one verb invocation and return the process exit code. */
 export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => {
   const [verb = "", ...rest] = argv;
-  const positionals = rest.filter((arg) => !arg.startsWith("--"));
-  const flags = new Set(rest.filter((arg) => arg.startsWith("--")));
+  const positionals = rest.filter((arg) => !isFlag(arg));
+  const flags = new Set(rest.filter(isFlag));
 
   const fail = (error: GoriError): number => {
     deps.errOut(formatError(error));
@@ -125,8 +130,10 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       ...(flags.has("--force") && { force: true }),
     });
     if (!result.ok && result.error.code === "CWD_IN_USE") {
-      if (!deps.prompt) return fail(result.error);
       deps.errOut(formatError(result.error));
+      if (!deps.prompt) {
+        return failMsg("reconnect with `gori attach`, or re-run create with --force");
+      }
       const reply = (
         await deps.prompt("start another task here anyway? [y/N]: ")
       )
@@ -235,7 +242,7 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
 
   const runScope = async (): Promise<number> => {
     const { value: section, rest: scopeArgs } = takeFlagValue(rest, "--section");
-    const text = scopeArgs.find((arg) => !arg.startsWith("--")) ?? "";
+    const text = scopeArgs.find((arg) => !isFlag(arg)) ?? "";
     const mode = flags.has("--append")
       ? ("append" as const)
       : flags.has("--replace")

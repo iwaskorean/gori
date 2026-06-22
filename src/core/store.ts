@@ -14,8 +14,14 @@ import type { Meta, Side, TaskStatus } from "./types.js";
 // non-ASCII letters are preserved.
 const UNSAFE = /[/\\:*?"<>|]/g;
 
+// Cap the slug so an unusually long keyword can't produce a filename that
+// exceeds the OS path limit (ENAMETOOLONG). The full keyword is kept verbatim
+// in meta.yml; this only bounds the directory name. 50 code points stay well
+// under the 255-byte filename limit even for multi-byte (e.g. CJK) characters.
+const MAX_SLUG_LENGTH = 50;
+
 export const slugify = (keyword: string): string => {
-  const slug = keyword
+  const cleaned = keyword
     .trim()
     .toLowerCase()
     .replace(UNSAFE, "")
@@ -25,6 +31,12 @@ export const slugify = (keyword: string): string => {
     .replace(/[\x00-\x1f]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
+  // Cap by code point (Array.from iterates code points, so an astral character
+  // is never split), then strip a hyphen the cut may leave dangling.
+  const slug = Array.from(cleaned)
+    .slice(0, MAX_SLUG_LENGTH)
+    .join("")
+    .replace(/-+$/g, "");
   return slug || "task";
 };
 

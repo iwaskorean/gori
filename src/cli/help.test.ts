@@ -31,6 +31,11 @@ describe("renderVerbHelp", () => {
     expect(detail).toContain("e.g. ");
   });
 
+  it("resolves non-verb topics like mcp and setup", () => {
+    expect(renderVerbHelp("mcp")).toContain("gori mcp");
+    expect(renderVerbHelp("setup")).toContain("gori setup --claude");
+  });
+
   it("returns null for an unknown name", () => {
     expect(renderVerbHelp("push")).toBeNull();
   });

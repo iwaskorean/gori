@@ -48,6 +48,19 @@ describe("slugify", () => {
   it("still turns whitespace control chars into hyphens", () => {
     expect(slugify("a\tb")).toBe("a-b");
   });
+  it("caps an unusually long keyword and leaves no trailing hyphen", () => {
+    const slug = slugify(`${"a ".repeat(100)}tail`);
+    expect(slug.length).toBeLessThanOrEqual(50);
+    expect(slug.endsWith("-")).toBe(false);
+  });
+  it("caps by code point so an astral character is never split", () => {
+    // The leading "a" shifts the cap boundary into the middle of an emoji's
+    // surrogate pair; code-point capping must not leave a lone surrogate.
+    const slug = slugify(`a${"🎯".repeat(60)}`);
+    const loneSurrogate =
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    expect(loneSurrogate.test(slug)).toBe(false);
+  });
 });
 
 describe("isSafeTaskId", () => {
