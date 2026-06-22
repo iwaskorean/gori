@@ -1,7 +1,7 @@
 {
   "name": "gori",
   "version": "0.1.0",
-  "description": "Real-time pairing bridge linking two AI coding sessions as symmetric peers",
+  "description": "A pairing bridge linking two AI coding sessions as symmetric peers on one shared task",
   "keywords": [
     "mcp",
     "model-context-protocol",
