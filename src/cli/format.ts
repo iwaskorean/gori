@@ -246,9 +246,11 @@ export const formatRead = (
 
   if (view.openForMe.length > 0) {
     lines.push("", "questions waiting on you:");
-    for (const q of view.openForMe) {
-      lines.push(`  [#${q.id}] (${q.asker}) ${indentContinuation(q.text)}`);
-    }
+    lines.push(
+      ...view.openForMe.map(
+        (q) => `  [#${q.id}] (${q.asker}) ${indentContinuation(q.text)}`,
+      ),
+    );
     lines.push(`${NEXT} answer each by its #id`);
   }
   return lines.join("\n");

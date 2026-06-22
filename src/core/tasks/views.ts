@@ -129,12 +129,13 @@ export const read = async (
     openQuestionCounts: countOpenQuestions(doc),
   };
 
-  let spec: string | null = null;
-  let openForMe: Question[] = [];
-  if (input.which !== "log") {
-    spec = renderForRead(doc) || null;
-    openForMe = binding.side === "pair-A" ? doc.openA : doc.openB;
-  }
+  const includeSpec = input.which !== "log";
+  const spec = includeSpec ? renderForRead(doc) || null : null;
+  const openForMe = includeSpec
+    ? binding.side === "pair-A"
+      ? doc.openA
+      : doc.openB
+    : [];
   const note =
     input.which !== "spec" ? await readNote(ctx.goriHome, binding.taskId) : null;
 
