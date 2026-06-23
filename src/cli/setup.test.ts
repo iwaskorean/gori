@@ -96,9 +96,7 @@ describe("runSetup --claude", () => {
     const code = runSetup("--claude", deps);
 
     expect(code).toBe(1);
-    expect(errOut.join("\n")).toContain(
-      "claude mcp add --scope user gori -- gori mcp",
-    );
+    expect(errOut.join("\n")).toContain("claude mcp add --scope user gori -- gori mcp");
   });
 
   it("handles a missing claude CLI but still installs the skill", () => {
@@ -137,10 +135,7 @@ describe("runSetup --cursor", () => {
 
   it("merges into existing servers without clobbering them", () => {
     mkdirSync(join(homeDir, ".cursor"), { recursive: true });
-    writeFileSync(
-      cursorConfig(),
-      JSON.stringify({ mcpServers: { other: { command: "x" } } }),
-    );
+    writeFileSync(cursorConfig(), JSON.stringify({ mcpServers: { other: { command: "x" } } }));
     runSetup("--cursor", makeDeps().deps);
     const config = JSON.parse(readFileSync(cursorConfig(), "utf8")) as {
       mcpServers: Record<string, unknown>;

@@ -30,8 +30,7 @@ const detail = (text: string): string => `    ${text}`;
 const subItem = (text: string): string => `        ${text}`;
 /** Pad a label so its value lines up in a column; the longest label is "session". */
 const LABEL_PAD = "session".length + 2;
-const labeled = (label: string, value: string): string =>
-  `${label.padEnd(LABEL_PAD)}${value}`;
+const labeled = (label: string, value: string): string => `${label.padEnd(LABEL_PAD)}${value}`;
 
 // formatError is CLI-only — the MCP wrapper builds its own `CODE: message`
 // error text — so the glyph never reaches an agent's tool response.
@@ -45,9 +44,7 @@ export const formatCreate = (data: {
   previousActive: string | null;
   scopeRecorded: boolean;
 }): string => {
-  const first = data.scopeRecorded
-    ? "you are pair-A · scope recorded"
-    : "you are pair-A";
+  const first = data.scopeRecorded ? "you are pair-A · scope recorded" : "you are pair-A";
   const lines = [
     `${DONE} created  ${data.keyword}`,
     detail(first),
@@ -139,10 +136,7 @@ const summaryLine = (a: ActiveStatus): string =>
   `${ACTIVE} ${a.keyword}   ${a.status} · you are ${a.side} · ` +
   (a.paired ? "paired" : "waiting for the partner session to link");
 
-export const formatStatus = (
-  active: ActiveStatus | null,
-  sessionKey: string,
-): string => {
+export const formatStatus = (active: ActiveStatus | null, sessionKey: string): string => {
   // The key matches this session's pointer filename in sessions/, so pairing
   // problems are diagnosable from CLI output alone (two sessions sharing one
   // key was invisible without inspecting the data directory).
@@ -159,13 +153,9 @@ export const formatStatus = (
     lines.push(detail(`${PARTNER_CHANGED} · ${NEXT} read to catch up`));
   }
   const mine =
-    active.side === "pair-A"
-      ? active.openQuestionCounts.pairA
-      : active.openQuestionCounts.pairB;
+    active.side === "pair-A" ? active.openQuestionCounts.pairA : active.openQuestionCounts.pairB;
   const partners =
-    active.side === "pair-A"
-      ? active.openQuestionCounts.pairB
-      : active.openQuestionCounts.pairA;
+    active.side === "pair-A" ? active.openQuestionCounts.pairB : active.openQuestionCounts.pairA;
   lines.push(detail(labeled("open", `you ${mine} · partner ${partners}`)));
   lines.push(detail(labeled("id", active.taskId)));
   lines.push(sessionLine);
@@ -192,21 +182,19 @@ export const formatReopen = (data: {
 
 // ---------- channels ----------
 
-export const formatLog = (data: {
-  taskId: string;
-  suggestPromotion: boolean;
-}): string => {
+export const formatLog = (data: { taskId: string; suggestPromotion: boolean }): string => {
   const lines = [`${DONE} logged`];
   if (data.suggestPromotion) {
     lines.push(
-      detail(`${NEXT} this note is your running log — put durable decisions in scope and raise open questions with ask`),
+      detail(
+        `${NEXT} this note is your running log — put durable decisions in scope and raise open questions with ask`,
+      ),
     );
   }
   return lines.join("\n");
 };
 
-export const formatScope = (_data: { taskId: string }): string =>
-  `${DONE} scope updated`;
+export const formatScope = (_data: { taskId: string }): string => `${DONE} scope updated`;
 
 export const formatAsk = (data: { id: number }): string =>
   [
@@ -230,10 +218,7 @@ const indentContinuation = (text: string): string => {
 };
 
 /** Assemble the reading view: summary, turn alert, spec before note, answer hints. */
-export const formatRead = (
-  view: ReadView,
-  which?: "log" | "spec",
-): string => {
+export const formatRead = (view: ReadView, which?: "log" | "spec"): string => {
   const lines = [summaryLine(view.summary)];
   if (view.summary.partnerModified) lines.push(detail(PARTNER_CHANGED));
 
@@ -247,9 +232,7 @@ export const formatRead = (
   if (view.openForMe.length > 0) {
     lines.push("", "questions waiting on you:");
     lines.push(
-      ...view.openForMe.map(
-        (q) => `  [#${q.id}] (${q.asker}) ${indentContinuation(q.text)}`,
-      ),
+      ...view.openForMe.map((q) => `  [#${q.id}] (${q.asker}) ${indentContinuation(q.text)}`),
     );
     lines.push(`${NEXT} answer each by its #id`);
   }

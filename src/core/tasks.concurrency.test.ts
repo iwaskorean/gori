@@ -71,9 +71,7 @@ describe("concurrent writes on one task are serialized by the per-task lock", ()
     const count = 8;
 
     const ids = (
-      await Promise.all(
-        Array.from({ length: count }, (_, i) => ask(A, { question: `q-${i}` }, T)),
-      )
+      await Promise.all(Array.from({ length: count }, (_, i) => ask(A, { question: `q-${i}` }, T)))
     ).map((r) => unwrap(r).id);
 
     expect(new Set(ids).size).toBe(count); // nextId never collided
@@ -86,10 +84,7 @@ describe("concurrent writes on one task are serialized by the per-task lock", ()
     const { taskId } = unwrap(await create(A, { keyword: "billing" }, T));
     const b2 = ctxOf(home, "/work/web2", "keyB2");
 
-    const results = await Promise.all([
-      link(B, { taskId }, T),
-      link(b2, { taskId }, T),
-    ]);
+    const results = await Promise.all([link(B, { taskId }, T), link(b2, { taskId }, T)]);
     const winners = results.filter((r) => r.ok);
     const losers = results.filter((r) => !r.ok);
 

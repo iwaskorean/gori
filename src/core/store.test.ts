@@ -57,8 +57,7 @@ describe("slugify", () => {
     // The leading "a" shifts the cap boundary into the middle of an emoji's
     // surrogate pair; code-point capping must not leave a lone surrogate.
     const slug = slugify(`a${"🎯".repeat(60)}`);
-    const loneSurrogate =
-      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
     expect(loneSurrogate.test(slug)).toBe(false);
   });
 });
@@ -92,9 +91,7 @@ describe("formatStamp / buildTaskId", () => {
     expect(formatStamp(fixed)).toBe("20260518-143052");
   });
   it("combines slug and stamp", () => {
-    expect(buildTaskId("billing webhook", fixed)).toBe(
-      "billing-webhook_20260518-143052",
-    );
+    expect(buildTaskId("billing webhook", fixed)).toBe("billing-webhook_20260518-143052");
   });
   it("produces an id that passes isSafeTaskId even for a control-char keyword", () => {
     expect(isSafeTaskId(buildTaskId("a\x07b", fixed))).toBe(true);
@@ -138,9 +135,7 @@ describe("writeMeta / readMeta (isolated GORI_HOME)", () => {
   });
 
   it("ensureUniqueTaskId keeps the id when free", async () => {
-    expect(await ensureUniqueTaskId(home, "fresh_20260101-000000")).toBe(
-      "fresh_20260101-000000",
-    );
+    expect(await ensureUniqueTaskId(home, "fresh_20260101-000000")).toBe("fresh_20260101-000000");
   });
 });
 
@@ -163,8 +158,6 @@ describe("appendNote", () => {
   it("separates blocks with a blank line and accumulates the count", async () => {
     await appendNote(home, id, "## a\n\nfirst\n");
     expect(await appendNote(home, id, "## b\n\nsecond\n")).toBe(7);
-    expect(await readFile(notePath(home, id), "utf8")).toBe(
-      "## a\n\nfirst\n\n## b\n\nsecond\n",
-    );
+    expect(await readFile(notePath(home, id), "utf8")).toBe("## a\n\nfirst\n\n## b\n\nsecond\n");
   });
 });

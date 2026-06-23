@@ -1,10 +1,4 @@
-import {
-  appendNote,
-  formatDisplay,
-  readSpec,
-  writeMeta,
-  writeSpec,
-} from "../store.js";
+import { appendNote, formatDisplay, readSpec, writeMeta, writeSpec } from "../store.js";
 import {
   findReservedHeadings,
   matchScopeSections,
@@ -16,12 +10,7 @@ import type { Answered, Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Result, Side } from "../types.js";
-import {
-  ACTIVE_TASK_GONE,
-  markModified,
-  rejectIfClosed,
-  withExistingTask,
-} from "./shared.js";
+import { ACTIVE_TASK_GONE, markModified, rejectIfClosed, withExistingTask } from "./shared.js";
 
 const NOTE_PROMOTION_LINE_THRESHOLD = 30;
 
@@ -56,21 +45,16 @@ export const log = async (
 
   const at = formatDisplay(now);
   const block = `## ${at} [${binding.side}]\n\n${input.message}\n`;
-  return withExistingTask(
-    ctx.goriHome,
-    binding.taskId,
-    ACTIVE_TASK_GONE,
-    async (meta) => {
-      const rejection = rejectIfClosed(meta);
-      if (rejection) return rejection;
-      const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
-      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
-      return ok({
-        taskId: meta.taskId,
-        suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
-      });
-    },
-  );
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    const rejection = rejectIfClosed(meta);
+    if (rejection) return rejection;
+    const lineCount = await appendNote(ctx.goriHome, binding.taskId, block);
+    await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+    return ok({
+      taskId: meta.taskId,
+      suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
+    });
+  });
 };
 
 // ---------- scope (spec channel) ----------
@@ -141,28 +125,21 @@ export const scope = async (
   await touchSession(ctx.goriHome, ctx.sessionKey);
 
   const at = formatDisplay(now);
-  return withExistingTask(
-    ctx.goriHome,
-    binding.taskId,
-    ACTIVE_TASK_GONE,
-    async (meta) => {
-      const rejection = rejectIfClosed(meta);
-      if (rejection) return rejection;
-      const doc = await readSpec(ctx.goriHome, binding.taskId);
-      const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
-      const next = sectionRef
-        ? editScopeSection(existing, sectionRef, input.mode, text)
-        : editWholeScope(existing, input.mode, text);
-      if (!next.ok) return next;
-      const updated: SpecDoc =
-        binding.side === "pair-A"
-          ? { ...doc, scopeA: next.data }
-          : { ...doc, scopeB: next.data };
-      await writeSpec(ctx.goriHome, binding.taskId, updated);
-      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
-      return ok({ taskId: meta.taskId });
-    },
-  );
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    const rejection = rejectIfClosed(meta);
+    if (rejection) return rejection;
+    const doc = await readSpec(ctx.goriHome, binding.taskId);
+    const existing = binding.side === "pair-A" ? doc.scopeA : doc.scopeB;
+    const next = sectionRef
+      ? editScopeSection(existing, sectionRef, input.mode, text)
+      : editWholeScope(existing, input.mode, text);
+    if (!next.ok) return next;
+    const updated: SpecDoc =
+      binding.side === "pair-A" ? { ...doc, scopeA: next.data } : { ...doc, scopeB: next.data };
+    await writeSpec(ctx.goriHome, binding.taskId, updated);
+    await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+    return ok({ taskId: meta.taskId });
+  });
 };
 
 // ---------- ask / answer (spec channel) ----------
@@ -183,24 +160,19 @@ export const ask = async (
   await touchSession(ctx.goriHome, ctx.sessionKey);
 
   const at = formatDisplay(now);
-  return withExistingTask(
-    ctx.goriHome,
-    binding.taskId,
-    ACTIVE_TASK_GONE,
-    async (meta) => {
-      const rejection = rejectIfClosed(meta);
-      if (rejection) return rejection;
-      const doc = await readSpec(ctx.goriHome, binding.taskId);
-      const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
-      const updated: SpecDoc =
-        partnerOf(binding.side) === "pair-A"
-          ? { ...doc, openA: [...doc.openA, entry] }
-          : { ...doc, openB: [...doc.openB, entry] };
-      await writeSpec(ctx.goriHome, binding.taskId, updated);
-      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
-      return ok({ id: entry.id });
-    },
-  );
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    const rejection = rejectIfClosed(meta);
+    if (rejection) return rejection;
+    const doc = await readSpec(ctx.goriHome, binding.taskId);
+    const entry: Question = { id: nextId(doc), asker: binding.side, text: question };
+    const updated: SpecDoc =
+      partnerOf(binding.side) === "pair-A"
+        ? { ...doc, openA: [...doc.openA, entry] }
+        : { ...doc, openB: [...doc.openB, entry] };
+    await writeSpec(ctx.goriHome, binding.taskId, updated);
+    await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+    return ok({ id: entry.id });
+  });
 };
 
 /**
@@ -222,41 +194,34 @@ export const answer = async (
   await touchSession(ctx.goriHome, ctx.sessionKey);
 
   const at = formatDisplay(now);
-  return withExistingTask(
-    ctx.goriHome,
-    binding.taskId,
-    ACTIVE_TASK_GONE,
-    async (meta) => {
-      const rejection = rejectIfClosed(meta);
-      if (rejection) return rejection;
-      const doc = await readSpec(ctx.goriHome, binding.taskId);
-      const mine = binding.side === "pair-A" ? doc.openA : doc.openB;
-      const [target, ...rest] = matchQuestions(mine, ref);
-      if (!target) {
-        return err("INVALID_INPUT", `no open question matches: ${ref}`);
-      }
-      if (rest.length > 0) {
-        return err("INVALID_INPUT", `ambiguous question reference: ${ref}`);
-      }
-      const resolved: Answered = {
-        id: target.id,
-        asker: target.asker,
-        answerer: binding.side,
-        date: at,
-        question: flatten(target.text),
-        answer: flatten(answerText),
-      };
-      const remaining = mine.filter((q) => q.id !== target.id);
-      const withoutQuestion: SpecDoc =
-        binding.side === "pair-A"
-          ? { ...doc, openA: remaining }
-          : { ...doc, openB: remaining };
-      await writeSpec(ctx.goriHome, binding.taskId, {
-        ...withoutQuestion,
-        answered: [...doc.answered, resolved],
-      });
-      await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
-      return ok({ id: target.id, queueEmpty: remaining.length === 0 });
-    },
-  );
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    const rejection = rejectIfClosed(meta);
+    if (rejection) return rejection;
+    const doc = await readSpec(ctx.goriHome, binding.taskId);
+    const mine = binding.side === "pair-A" ? doc.openA : doc.openB;
+    const [target, ...rest] = matchQuestions(mine, ref);
+    if (!target) {
+      return err("INVALID_INPUT", `no open question matches: ${ref}`);
+    }
+    if (rest.length > 0) {
+      return err("INVALID_INPUT", `ambiguous question reference: ${ref}`);
+    }
+    const resolved: Answered = {
+      id: target.id,
+      asker: target.asker,
+      answerer: binding.side,
+      date: at,
+      question: flatten(target.text),
+      answer: flatten(answerText),
+    };
+    const remaining = mine.filter((q) => q.id !== target.id);
+    const withoutQuestion: SpecDoc =
+      binding.side === "pair-A" ? { ...doc, openA: remaining } : { ...doc, openB: remaining };
+    await writeSpec(ctx.goriHome, binding.taskId, {
+      ...withoutQuestion,
+      answered: [...doc.answered, resolved],
+    });
+    await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+    return ok({ id: target.id, queueEmpty: remaining.length === 0 });
+  });
 };

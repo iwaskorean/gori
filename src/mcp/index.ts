@@ -89,10 +89,7 @@ const emit = <T>(result: Result<T>, format: (data: T) => string): ToolResult =>
 
 /** Build the server around an injected Ctx so tests can run it in-process. */
 export const buildMcpServer = (ctx: Ctx): McpServer => {
-  const server = new McpServer(
-    { name: "gori", version: VERSION },
-    { instructions: INSTRUCTIONS },
-  );
+  const server = new McpServer({ name: "gori", version: VERSION }, { instructions: INSTRUCTIONS });
 
   server.registerTool(
     "gori_create",
@@ -104,10 +101,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
         keyword: z
           .string()
           .describe("Short human-readable name for the task (shown to both sides)"),
-        scope: z
-          .string()
-          .optional()
-          .describe("This side's work scope, recorded in the same step"),
+        scope: z.string().optional().describe("This side's work scope, recorded in the same step"),
         force: z
           .boolean()
           .optional()
@@ -137,8 +131,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
       if (candidates.length === 0) {
         return errorResult({
           code: "NO_PAIRABLE_TASK",
-          message:
-            "no task is open for pairing — your partner starts one with gori_create",
+          message: "no task is open for pairing — your partner starts one with gori_create",
         });
       }
       return textResult(
@@ -176,10 +169,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
           `${formatAttachCandidates(candidates)}\ncall gori_attach again with the chosen task_id`,
         );
       }
-      return emit(
-        await attach(ctx, { taskId: task_id, ...(side && { side }) }),
-        formatAttach,
-      );
+      return emit(await attach(ctx, { taskId: task_id, ...(side && { side }) }), formatAttach);
     },
   );
 
@@ -210,8 +200,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
         "partner changed something — follow up with gori_read.",
       inputSchema: {},
     },
-    async () =>
-      emit(await status(ctx), ({ active }) => formatStatus(active, ctx.sessionKey)),
+    async () => emit(await status(ctx), ({ active }) => formatStatus(active, ctx.sessionKey)),
   );
 
   server.registerTool(
@@ -226,17 +215,13 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
   server.registerTool(
     "gori_reopen",
     {
-      description:
-        "Reopen a closed task. Without task_id, reopens the session's last task.",
+      description: "Reopen a closed task. Without task_id, reopens the session's last task.",
       inputSchema: {
         task_id: z.string().optional().describe("Task id to reopen"),
       },
     },
     async ({ task_id }) =>
-      emit(
-        await reopen(ctx, task_id !== undefined ? { taskId: task_id } : {}),
-        formatReopen,
-      ),
+      emit(await reopen(ctx, task_id !== undefined ? { taskId: task_id } : {}), formatReopen),
   );
 
   server.registerTool(
@@ -273,9 +258,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
         section: z
           .string()
           .optional()
-          .describe(
-            "A `### ` sub-section heading to edit (exact, else substring); requires mode",
-          ),
+          .describe("A `### ` sub-section heading to edit (exact, else substring); requires mode"),
       },
     },
     async ({ text, mode, section }) =>
@@ -305,12 +288,9 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
   server.registerTool(
     "gori_answer",
     {
-      description:
-        "Answer a question waiting on this side (see gori_read for the queue).",
+      description: "Answer a question waiting on this side (see gori_read for the queue).",
       inputSchema: {
-        ref: z
-          .string()
-          .describe("Question id like '#1', or a text fragment of the question"),
+        ref: z.string().describe("Question id like '#1', or a text fragment of the question"),
         answer: z.string().describe("The answer"),
       },
     },
@@ -324,10 +304,7 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
         "Read the active task: spec (scopes, open questions, answers) and the " +
         "note timeline. Questions waiting on this side are highlighted with #ids.",
       inputSchema: {
-        which: z
-          .enum(["log", "spec"])
-          .optional()
-          .describe("Limit to one channel; omit for both"),
+        which: z.enum(["log", "spec"]).optional().describe("Limit to one channel; omit for both"),
       },
     },
     async ({ which }) =>

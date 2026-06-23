@@ -43,12 +43,7 @@ import {
   formatScope,
   formatStatus,
 } from "./format.js";
-import {
-  renderHelpOverview,
-  renderVerbHelp,
-  suggestVerbs,
-  VERBS,
-} from "./help.js";
+import { renderHelpOverview, renderVerbHelp, suggestVerbs, VERBS } from "./help.js";
 import type { Verb } from "./help.js";
 
 export type CliDeps = {
@@ -59,19 +54,16 @@ export type CliDeps = {
   prompt: ((question: string) => Promise<string>) | null;
 };
 
-const isVerb = (value: string): value is Verb =>
-  (VERBS as readonly string[]).includes(value);
+const isVerb = (value: string): value is Verb => (VERBS as readonly string[]).includes(value);
 
 // The only real flags. Any other dashed token is treated as positional text, so
 // a message, scope body, question, or answer may itself start with "--".
 const KNOWN_FLAGS = new Set(["--force", "--append", "--replace", "--section"]);
 const isFlag = (arg: string): boolean => KNOWN_FLAGS.has(arg);
 
-const asIndex = (arg: string): number | null =>
-  /^\d+$/.test(arg) ? Number(arg) : null;
+const asIndex = (arg: string): number | null => (/^\d+$/.test(arg) ? Number(arg) : null);
 
-const isSide = (value: string): value is Side =>
-  value === "pair-A" || value === "pair-B";
+const isSide = (value: string): value is Side => value === "pair-A" || value === "pair-B";
 
 /** Pull a `--name value` pair out of args, returning the value and the rest. */
 const takeFlagValue = (
@@ -134,9 +126,7 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       if (!deps.prompt) {
         return failMsg("reconnect with `gori attach`, or re-run create with --force");
       }
-      const reply = (
-        await deps.prompt("start another task here anyway? [y/N]: ")
-      )
+      const reply = (await deps.prompt("start another task here anyway? [y/N]: "))
         .trim()
         .toLowerCase();
       if (reply !== "y" && reply !== "yes") {
@@ -161,7 +151,8 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
     const index = taskId === null ? null : asIndex(taskId);
     if (index !== null) {
       const chosen = candidates[index - 1];
-      if (!chosen) return failMsg(`no pairing candidate ${index} — run \`gori link\` to see the list`);
+      if (!chosen)
+        return failMsg(`no pairing candidate ${index} — run \`gori link\` to see the list`);
       taskId = chosen.taskId;
     }
     if (taskId === null) {
@@ -193,7 +184,8 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       const { candidates } = found.data;
       if (index !== null) {
         const chosen = candidates[index - 1];
-        if (!chosen) return failMsg(`no attach candidate ${index} — run \`gori attach\` to see the list`);
+        if (!chosen)
+          return failMsg(`no attach candidate ${index} — run \`gori attach\` to see the list`);
         taskId = chosen.taskId;
       } else {
         if (candidates.length === 0) {
@@ -201,7 +193,9 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
         }
         deps.out(formatAttachCandidates(candidates));
         if (!deps.prompt) {
-          return failMsg("non-interactive session — run `gori attach <number|task-id> [pair-A|pair-B]`");
+          return failMsg(
+            "non-interactive session — run `gori attach <number|task-id> [pair-A|pair-B]`",
+          );
         }
         const chosen = await pickByNumber(candidates);
         if (!chosen) return failMsg("invalid selection");
@@ -261,9 +255,7 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
         deps.errOut(formatError(result.error));
         return failMsg("re-run with --append or --replace");
       }
-      const reply = (
-        await deps.prompt("scope already set — [a]ppend, [r]eplace, or [c]ancel: ")
-      )
+      const reply = (await deps.prompt("scope already set — [a]ppend, [r]eplace, or [c]ancel: "))
         .trim()
         .toLowerCase();
       if (reply === "a") result = await scope(deps.ctx, { ...input, mode: "append" });
@@ -281,9 +273,7 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
     if (which !== undefined && which !== "log" && which !== "spec") {
       return failMsg("expected `gori read [log|spec]`");
     }
-    return emit(await read(deps.ctx, which ? { which } : {}), (view) =>
-      formatRead(view, which),
-    );
+    return emit(await read(deps.ctx, which ? { which } : {}), (view) => formatRead(view, which));
   };
 
   // ---------- dispatch ----------
@@ -329,17 +319,11 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
     case "reopen":
       return runReopen();
     case "log":
-      return emit(
-        await log(deps.ctx, { message: positionals[0] ?? "" }),
-        formatLog,
-      );
+      return emit(await log(deps.ctx, { message: positionals[0] ?? "" }), formatLog);
     case "scope":
       return runScope();
     case "ask":
-      return emit(
-        await ask(deps.ctx, { question: positionals[0] ?? "" }),
-        formatAsk,
-      );
+      return emit(await ask(deps.ctx, { question: positionals[0] ?? "" }), formatAsk);
     case "answer":
       return emit(
         await answer(deps.ctx, {

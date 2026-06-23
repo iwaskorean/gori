@@ -20,9 +20,7 @@ afterEach(async () => {
 
 describe("create", () => {
   it("creates a task and binds the session as pair-A", async () => {
-    const { taskId, previousActive } = unwrap(
-      await create(A, { keyword: "billing webhook" }, T1),
-    );
+    const { taskId, previousActive } = unwrap(await create(A, { keyword: "billing webhook" }, T1));
     expect(taskId).toBe("billing-webhook_20260101-100000");
     expect(previousActive).toBeNull();
 
@@ -35,9 +33,7 @@ describe("create", () => {
   });
 
   it("rejects a blank keyword", async () => {
-    expect(errorOf(await create(A, { keyword: "   " }, T1)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await create(A, { keyword: "   " }, T1)).code).toBe("INVALID_INPUT");
   });
 
   it("reports the previously active task when re-creating in the same session", async () => {
@@ -58,9 +54,7 @@ describe("create", () => {
     // have linked as pair-B started a second task instead.
     const { taskId } = unwrap(await create(A, { keyword: "one" }, T1));
     unwrap(await link(B, { taskId }, T2));
-    expect(errorOf(await create(B, { keyword: "dup" }, T3)).code).toBe(
-      "CWD_IN_USE",
-    );
+    expect(errorOf(await create(B, { keyword: "dup" }, T3)).code).toBe("CWD_IN_USE");
   });
 
   it("allows creating again once the directory's task is closed", async () => {
@@ -78,11 +72,7 @@ describe("create", () => {
   });
 
   it("rejects a scope with a reserved heading before creating anything", async () => {
-    const result = await create(
-      A,
-      { keyword: "one", scope: "## Answered\nsneaky" },
-      T1,
-    );
+    const result = await create(A, { keyword: "one", scope: "## Answered\nsneaky" }, T1);
     const error = errorOf(result);
     expect(error.code).toBe("INVALID_INPUT");
     expect(error.message).toContain("## Answered"); // names the offending heading
@@ -145,9 +135,9 @@ describe("close / reopen (lifecycle)", () => {
   });
 
   it("rejects reopening a non-existent task", async () => {
-    expect(
-      errorOf(await reopen(A, { taskId: "ghost_20260101-000000" }, T1)).code,
-    ).toBe("TASK_NOT_FOUND");
+    expect(errorOf(await reopen(A, { taskId: "ghost_20260101-000000" }, T1)).code).toBe(
+      "TASK_NOT_FOUND",
+    );
   });
 
   it("rejects reopen with neither an id nor a session pointer", async () => {

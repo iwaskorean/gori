@@ -5,8 +5,20 @@
  */
 
 export const VERBS = [
-  "create", "link", "attach", "detach", "list", "status",
-  "close", "reopen", "log", "scope", "ask", "answer", "read", "help",
+  "create",
+  "link",
+  "attach",
+  "detach",
+  "list",
+  "status",
+  "close",
+  "reopen",
+  "log",
+  "scope",
+  "ask",
+  "answer",
+  "read",
+  "help",
 ] as const;
 
 export type Verb = (typeof VERBS)[number];
@@ -184,10 +196,7 @@ export const suggestVerbs = (input: string): string[] => {
   const needle = input.toLowerCase();
   if (!needle) return [];
   return VERBS.map((verb) => ({ verb, distance: editDistance(needle, verb) }))
-    .filter(
-      ({ verb, distance }) =>
-        verb.startsWith(needle) || distance <= SUGGESTION_MAX_DISTANCE,
-    )
+    .filter(({ verb, distance }) => verb.startsWith(needle) || distance <= SUGGESTION_MAX_DISTANCE)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, SUGGESTION_LIMIT)
     .map(({ verb }) => verb);

@@ -207,14 +207,10 @@ export const renderForRead = (doc: SpecDoc): string => {
   if (doc.scopeA) sections.push(textSection("## pair-A Scope", doc.scopeA));
   if (doc.scopeB) sections.push(textSection("## pair-B Scope", doc.scopeB));
   if (doc.openA.length > 0) {
-    sections.push(
-      itemsSection("## Open Questions for pair-A", doc.openA.map(serializeQuestion)),
-    );
+    sections.push(itemsSection("## Open Questions for pair-A", doc.openA.map(serializeQuestion)));
   }
   if (doc.openB.length > 0) {
-    sections.push(
-      itemsSection("## Open Questions for pair-B", doc.openB.map(serializeQuestion)),
-    );
+    sections.push(itemsSection("## Open Questions for pair-B", doc.openB.map(serializeQuestion)));
   }
   if (doc.answered.length > 0) {
     sections.push(itemsSection("## Answered", doc.answered.map(serializeAnswered)));

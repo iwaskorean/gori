@@ -54,9 +54,7 @@ export type GoriError = {
   message: string;
 };
 
-export type Result<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: GoriError };
+export type Result<T> = { ok: true; data: T } | { ok: false; error: GoriError };
 
 export const ok = <T>(data: T): Result<T> => ({ ok: true, data });
 

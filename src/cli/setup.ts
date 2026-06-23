@@ -23,16 +23,7 @@ const MCP_ARGS = ["mcp"];
 
 // Claude Code registers via its own CLI; the spawned args and the manual
 // fallback we print are derived from the same source so they cannot drift.
-const CLAUDE_ADD_ARGS = [
-  "mcp",
-  "add",
-  "--scope",
-  "user",
-  "gori",
-  "--",
-  MCP_COMMAND,
-  ...MCP_ARGS,
-];
+const CLAUDE_ADD_ARGS = ["mcp", "add", "--scope", "user", "gori", "--", MCP_COMMAND, ...MCP_ARGS];
 const CLAUDE_MANUAL_ADD = ["claude", ...CLAUDE_ADD_ARGS].join(" ");
 
 /** A spawned command either ran (carrying its exit code) or could not start. */
@@ -60,9 +51,7 @@ const registerClaude = (deps: SetupDeps): boolean => {
   const probe = deps.exec("claude", ["mcp", "get", "gori"]);
   if ("error" in probe) {
     deps.errOut(`${FAIL} MCP server — \`claude\` CLI not found on PATH`);
-    deps.errOut(
-      `    once it is installed, register manually: ${CLAUDE_MANUAL_ADD}`,
-    );
+    deps.errOut(`    once it is installed, register manually: ${CLAUDE_MANUAL_ADD}`);
     return false;
   }
   // `claude mcp get` exits 0 when the server exists, non-zero when it does not.
@@ -116,8 +105,7 @@ const registerCursor = (deps: SetupDeps): boolean => {
   const server = { command: MCP_COMMAND, args: MCP_ARGS };
   try {
     const existing = deps.readText(path) ?? "";
-    const config: Record<string, unknown> =
-      existing.trim() === "" ? {} : parseJsonObject(existing);
+    const config: Record<string, unknown> = existing.trim() === "" ? {} : parseJsonObject(existing);
     const servers = asObject(config.mcpServers);
     if (JSON.stringify(servers.gori) === JSON.stringify(server)) {
       deps.out(`${DONE} MCP server already in ${path} — skipped`);
@@ -130,9 +118,7 @@ const registerCursor = (deps: SetupDeps): boolean => {
     return true;
   } catch (reason: unknown) {
     deps.errOut(`${FAIL} Cursor — could not update ${path}: ${String(reason)}`);
-    deps.errOut(
-      `    add to "mcpServers" yourself: "gori": ${JSON.stringify(server)}`,
-    );
+    deps.errOut(`    add to "mcpServers" yourself: "gori": ${JSON.stringify(server)}`);
     return false;
   }
 };
@@ -196,16 +182,11 @@ const printNextSteps = (target: SetupTarget, deps: SetupDeps): void => {
   }
   const agent = AGENT_NAME[target];
   deps.out(`${NEXT} restart ${agent} to load the gori tools`);
-  deps.out(
-    `    note: ${agent} support is experimental — not yet verified end-to-end`,
-  );
+  deps.out(`    note: ${agent} support is experimental — not yet verified end-to-end`);
 };
 
 /** Run the installer for the given target. Returns the process exit code. */
-export const runSetup = (
-  target: string | undefined,
-  deps: SetupDeps,
-): number => {
+export const runSetup = (target: string | undefined, deps: SetupDeps): number => {
   if (!isTarget(target)) {
     deps.errOut(
       target === undefined
@@ -234,11 +215,7 @@ export const createSetupDeps = (io: {
 }): SetupDeps => ({
   exec: (command, args) => {
     const result = spawnSync(command, args, { stdio: "ignore" });
-    if (
-      result.error &&
-      "code" in result.error &&
-      result.error.code === "ENOENT"
-    ) {
+    if (result.error && "code" in result.error && result.error.code === "ENOENT") {
       return { error: "not-found" };
     }
     return { code: result.status ?? 1 };
@@ -251,12 +228,7 @@ export const createSetupDeps = (io: {
     try {
       return readFileSync(path, "utf8");
     } catch (reason: unknown) {
-      if (
-        reason &&
-        typeof reason === "object" &&
-        "code" in reason &&
-        reason.code === "ENOENT"
-      ) {
+      if (reason && typeof reason === "object" && "code" in reason && reason.code === "ENOENT") {
         return null;
       }
       throw reason;

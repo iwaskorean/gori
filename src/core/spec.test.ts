@@ -72,15 +72,9 @@ describe("emptySpec serialization", () => {
 describe("parseSpec body handling", () => {
   it("keeps an arbitrary ## line as scope content, not a boundary", () => {
     const doc = parseSpec(
-      [
-        "## pair-A Scope",
-        "",
-        "Steps:",
-        "## not a real heading",
-        "done",
-        "",
-        "## Answered",
-      ].join("\n"),
+      ["## pair-A Scope", "", "Steps:", "## not a real heading", "done", "", "## Answered"].join(
+        "\n",
+      ),
     );
     expect(doc.scopeA).toBe("Steps:\n## not a real heading\ndone");
   });
@@ -139,9 +133,10 @@ describe("renderForRead", () => {
 
 describe("findReservedHeadings", () => {
   it("returns every reserved heading in the text, in document order", () => {
-    expect(
-      findReservedHeadings("intro\n## Answered\nmid\n## pair-A Scope\nend"),
-    ).toEqual(["## pair-A Scope", "## Answered"]);
+    expect(findReservedHeadings("intro\n## Answered\nmid\n## pair-A Scope\nend")).toEqual([
+      "## pair-A Scope",
+      "## Answered",
+    ]);
   });
 
   it("returns an empty array for indented or altered heading lines", () => {

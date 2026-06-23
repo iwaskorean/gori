@@ -19,17 +19,14 @@ afterEach(async () => {
 });
 
 describe("log (note channel)", () => {
-  const readNote = (taskId: string): Promise<string> =>
-    readFile(notePath(home, taskId), "utf8");
+  const readNote = (taskId: string): Promise<string> => readFile(notePath(home, taskId), "utf8");
 
   it("creates note.md with a timestamped header and body on first log", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
     const result = unwrap(await log(A, { message: "first entry" }, T2));
     expect(result.taskId).toBe(taskId);
     expect(result.suggestPromotion).toBe(false);
-    expect(await readNote(taskId)).toBe(
-      "## 2026-01-01 10:00:05 [pair-A]\n\nfirst entry\n",
-    );
+    expect(await readNote(taskId)).toBe("## 2026-01-01 10:00:05 [pair-A]\n\nfirst entry\n");
   });
 
   it("preserves a multi-line message", async () => {
@@ -73,44 +70,32 @@ describe("log (note channel)", () => {
 
   it("rejects a blank message", async () => {
     await create(A, { keyword: "x" }, T1);
-    expect(errorOf(await log(A, { message: "   " }, T2)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await log(A, { message: "   " }, T2)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects logging with no active task", async () => {
-    expect(errorOf(await log(C, { message: "hi" }, T1)).code).toBe(
-      "NO_ACTIVE_TASK",
-    );
+    expect(errorOf(await log(C, { message: "hi" }, T1)).code).toBe("NO_ACTIVE_TASK");
   });
 
   it("rejects logging on a closed task", async () => {
     unwrap(await create(A, { keyword: "x" }, T1));
     unwrap(await close(A, T2));
-    expect(errorOf(await log(A, { message: "hi" }, T3)).code).toBe(
-      "ALREADY_CLOSED",
-    );
+    expect(errorOf(await log(A, { message: "hi" }, T3)).code).toBe("ALREADY_CLOSED");
   });
 
   it("flags suggestPromotion once the note exceeds the line threshold", async () => {
     unwrap(await create(A, { keyword: "x" }, T1));
-    expect(unwrap(await log(A, { message: "short" }, T2)).suggestPromotion).toBe(
-      false,
-    );
+    expect(unwrap(await log(A, { message: "short" }, T2)).suggestPromotion).toBe(false);
 
     const long = Array.from({ length: 31 }, (_, i) => `line ${i}`).join("\n");
-    expect(unwrap(await log(A, { message: long }, T3)).suggestPromotion).toBe(
-      true,
-    );
+    expect(unwrap(await log(A, { message: long }, T3)).suggestPromotion).toBe(true);
   });
 });
 
 describe("scope (spec channel)", () => {
   it("sets the current side's scope and creates the spec skeleton", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
-    expect(unwrap(await scope(A, { text: "Own the API." }, T2)).taskId).toBe(
-      taskId,
-    );
+    expect(unwrap(await scope(A, { text: "Own the API." }, T2)).taskId).toBe(taskId);
     const doc = await readSpec(home, taskId);
     expect(doc.scopeA).toBe("Own the API.");
     expect(doc.scopeB).toBe("");
@@ -129,9 +114,7 @@ describe("scope (spec channel)", () => {
   it("returns SCOPE_EXISTS when a scope is already set and no mode is given", async () => {
     await create(A, { keyword: "x" }, T1);
     await scope(A, { text: "first" }, T2);
-    expect(errorOf(await scope(A, { text: "second" }, T3)).code).toBe(
-      "SCOPE_EXISTS",
-    );
+    expect(errorOf(await scope(A, { text: "second" }, T3)).code).toBe("SCOPE_EXISTS");
   });
 
   it("appends to the existing scope on mode append", async () => {
@@ -152,26 +135,20 @@ describe("scope (spec channel)", () => {
     const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
     await scope(A, { text: "### A\n\nalpha\n\n### B\n\nbeta" }, T2);
     unwrap(await scope(A, { text: "ALPHA2", section: "A", mode: "replace" }, T3));
-    expect((await readSpec(home, taskId)).scopeA).toBe(
-      "### A\n\nALPHA2\n\n### B\n\nbeta",
-    );
+    expect((await readSpec(home, taskId)).scopeA).toBe("### A\n\nALPHA2\n\n### B\n\nbeta");
   });
 
   it("appends to one ### sub-section", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
     await scope(A, { text: "### A\n\nalpha\n\n### B\n\nbeta" }, T2);
     unwrap(await scope(A, { text: "more", section: "B", mode: "append" }, T3));
-    expect((await readSpec(home, taskId)).scopeA).toBe(
-      "### A\n\nalpha\n\n### B\n\nbeta\nmore",
-    );
+    expect((await readSpec(home, taskId)).scopeA).toBe("### A\n\nalpha\n\n### B\n\nbeta\nmore");
   });
 
   it("returns SECTION_NOT_FOUND listing the available headings", async () => {
     await create(A, { keyword: "x" }, T1);
     await scope(A, { text: "### A\n\nalpha" }, T2);
-    const error = errorOf(
-      await scope(A, { text: "x", section: "Z", mode: "replace" }, T3),
-    );
+    const error = errorOf(await scope(A, { text: "x", section: "Z", mode: "replace" }, T3));
     expect(error.code).toBe("SECTION_NOT_FOUND");
     expect(error.message).toContain('"A"');
   });
@@ -187,9 +164,7 @@ describe("scope (spec channel)", () => {
   it("requires an explicit mode when editing a section", async () => {
     await create(A, { keyword: "x" }, T1);
     await scope(A, { text: "### A\n\nalpha" }, T2);
-    expect(errorOf(await scope(A, { text: "x", section: "A" }, T3)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await scope(A, { text: "x", section: "A" }, T3)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects text containing reserved headings, naming each", async () => {
@@ -204,23 +179,17 @@ describe("scope (spec channel)", () => {
 
   it("rejects a blank scope", async () => {
     await create(A, { keyword: "x" }, T1);
-    expect(errorOf(await scope(A, { text: "   " }, T2)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await scope(A, { text: "   " }, T2)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects scoping with no active task", async () => {
-    expect(errorOf(await scope(C, { text: "hi" }, T1)).code).toBe(
-      "NO_ACTIVE_TASK",
-    );
+    expect(errorOf(await scope(C, { text: "hi" }, T1)).code).toBe("NO_ACTIVE_TASK");
   });
 
   it("rejects scoping on a closed task", async () => {
     unwrap(await create(A, { keyword: "x" }, T1));
     unwrap(await close(A, T2));
-    expect(errorOf(await scope(A, { text: "hi" }, T3)).code).toBe(
-      "ALREADY_CLOSED",
-    );
+    expect(errorOf(await scope(A, { text: "hi" }, T3)).code).toBe("ALREADY_CLOSED");
   });
 
   it("updates meta last-modified to the scoping side", async () => {
@@ -254,23 +223,17 @@ describe("ask (spec channel)", () => {
 
   it("rejects a blank question", async () => {
     await create(A, { keyword: "x" }, T1);
-    expect(errorOf(await ask(A, { question: "  " }, T2)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await ask(A, { question: "  " }, T2)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects asking with no active task", async () => {
-    expect(errorOf(await ask(C, { question: "hi?" }, T1)).code).toBe(
-      "NO_ACTIVE_TASK",
-    );
+    expect(errorOf(await ask(C, { question: "hi?" }, T1)).code).toBe("NO_ACTIVE_TASK");
   });
 
   it("rejects asking on a closed task", async () => {
     unwrap(await create(A, { keyword: "x" }, T1));
     unwrap(await close(A, T2));
-    expect(errorOf(await ask(A, { question: "q?" }, T3)).code).toBe(
-      "ALREADY_CLOSED",
-    );
+    expect(errorOf(await ask(A, { question: "q?" }, T3)).code).toBe("ALREADY_CLOSED");
   });
 });
 
@@ -279,9 +242,7 @@ describe("answer (spec channel)", () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2);
     await ask(A, { question: "Retry policy?" }, T3); // lands in B's queue as #1
-    const { id, queueEmpty } = unwrap(
-      await answer(B, { ref: "#1", answer: "Exponential." }, T3),
-    );
+    const { id, queueEmpty } = unwrap(await answer(B, { ref: "#1", answer: "Exponential." }, T3));
     expect(id).toBe(1);
     expect(queueEmpty).toBe(true); // B's queue is drained
 
@@ -331,9 +292,7 @@ describe("answer (spec channel)", () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2);
     await ask(A, { question: "only question?" }, T3);
-    expect(errorOf(await answer(B, { ref: "#99", answer: "x" }, T3)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await answer(B, { ref: "#99", answer: "x" }, T3)).code).toBe("INVALID_INPUT");
   });
 
   it("only matches the answering side's own queue", async () => {
@@ -341,24 +300,18 @@ describe("answer (spec channel)", () => {
     await link(B, { taskId }, T2);
     await ask(A, { question: "for B?" }, T3); // sits in B's queue
     // A tries to answer its own (empty) queue
-    expect(errorOf(await answer(A, { ref: "#1", answer: "x" }, T3)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await answer(A, { ref: "#1", answer: "x" }, T3)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects a blank answer", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     await link(B, { taskId }, T2);
     await ask(A, { question: "q?" }, T3);
-    expect(errorOf(await answer(B, { ref: "#1", answer: "  " }, T3)).code).toBe(
-      "INVALID_INPUT",
-    );
+    expect(errorOf(await answer(B, { ref: "#1", answer: "  " }, T3)).code).toBe("INVALID_INPUT");
   });
 
   it("rejects answering with no active task", async () => {
-    expect(errorOf(await answer(C, { ref: "#1", answer: "x" }, T1)).code).toBe(
-      "NO_ACTIVE_TASK",
-    );
+    expect(errorOf(await answer(C, { ref: "#1", answer: "x" }, T1)).code).toBe("NO_ACTIVE_TASK");
   });
 
   it("rejects answering on a closed task, even with a matching question", async () => {
@@ -366,9 +319,7 @@ describe("answer (spec channel)", () => {
     await link(B, { taskId }, T2);
     await ask(A, { question: "q?" }, T3); // lands in B's queue as #1
     unwrap(await close(A, T3));
-    expect(errorOf(await answer(B, { ref: "#1", answer: "x" }, T3)).code).toBe(
-      "ALREADY_CLOSED",
-    );
+    expect(errorOf(await answer(B, { ref: "#1", answer: "x" }, T3)).code).toBe("ALREADY_CLOSED");
   });
 
   it("reports a non-empty queue while questions remain", async () => {

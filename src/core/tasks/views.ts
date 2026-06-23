@@ -31,8 +31,7 @@ const statusRank = (s: TaskStatus): number => (s === "in-progress" ? 0 : 1);
 
 // in-progress first, then closed; within each group most recently modified first.
 const byStatusThenRecency = (a: TaskSummary, b: TaskSummary): number =>
-  statusRank(a.status) - statusRank(b.status) ||
-  b.lastModifiedAt.localeCompare(a.lastModifiedAt);
+  statusRank(a.status) - statusRank(b.status) || b.lastModifiedAt.localeCompare(a.lastModifiedAt);
 
 export const list = async (
   ctx: Ctx,
@@ -131,13 +130,8 @@ export const read = async (
 
   const includeSpec = input.which !== "log";
   const spec = includeSpec ? renderForRead(doc) || null : null;
-  const openForMe = includeSpec
-    ? binding.side === "pair-A"
-      ? doc.openA
-      : doc.openB
-    : [];
-  const note =
-    input.which !== "spec" ? await readNote(ctx.goriHome, binding.taskId) : null;
+  const openForMe = includeSpec ? (binding.side === "pair-A" ? doc.openA : doc.openB) : [];
+  const note = input.which !== "spec" ? await readNote(ctx.goriHome, binding.taskId) : null;
 
   return ok({ summary, spec, note, openForMe });
 };

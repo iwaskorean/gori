@@ -10,12 +10,7 @@ import { VERSION } from "../core/index.js";
  * An in-process CLI session: captured output, scripted prompt replies, and a
  * fixed Ctx. `interactive: false` models a piped (non-TTY) invocation.
  */
-const makeSession = (
-  home: string,
-  cwd: string,
-  key: string,
-  interactive = true,
-) => {
+const makeSession = (home: string, cwd: string, key: string, interactive = true) => {
   const out: string[] = [];
   const err: string[] = [];
   let replies: string[] = [];

@@ -5,8 +5,7 @@ const RETRY_MS = 20;
 const TIMEOUT_MS = 5_000;
 const STALE_MS = 30_000;
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Remove the lockfile if it looks orphaned (older than STALE_MS). */
 const breakIfStale = async (lockPath: string): Promise<void> => {
@@ -24,10 +23,7 @@ const breakIfStale = async (lockPath: string): Promise<void> => {
  * Minimal advisory file lock. Serializes writes through an O_EXCL lockfile so
  * two concurrent peer processes on the same machine don't corrupt shared files.
  */
-export const withLock = async <T>(
-  lockPath: string,
-  fn: () => Promise<T> | T,
-): Promise<T> => {
+export const withLock = async <T>(lockPath: string, fn: () => Promise<T> | T): Promise<T> => {
   const deadline = Date.now() + TIMEOUT_MS;
   for (;;) {
     try {
@@ -39,7 +35,7 @@ export const withLock = async <T>(
       if (!(isErrnoException(error) && error.code === "EEXIST")) throw error;
       await breakIfStale(lockPath);
       if (Date.now() > deadline) {
-        throw new Error(`gori: timed out acquiring lock (${lockPath})`);
+        throw new Error(`gori: timed out acquiring lock (${lockPath})`, { cause: error });
       }
       await sleep(RETRY_MS);
     }

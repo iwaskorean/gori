@@ -142,8 +142,7 @@ describe("formatList", () => {
     expect(text).toContain("pair-A 1");
     expect(text).toContain("x_1");
 
-    const betaLine =
-      text.split("\n").find((line) => line.includes("2. beta")) ?? "";
+    const betaLine = text.split("\n").find((line) => line.includes("2. beta")) ?? "";
     expect(betaLine).not.toContain("(active)");
     expect(betaLine).not.toContain("●");
   });
@@ -190,12 +189,8 @@ describe("formatClose", () => {
 
 describe("formatReopen", () => {
   it("tells an unbound session to attach, and stays quiet when bound", () => {
-    expect(
-      formatReopen({ taskId: "x_1", keyword: "x", reattach: true }),
-    ).toContain("attach");
-    expect(
-      formatReopen({ taskId: "x_1", keyword: "x", reattach: false }),
-    ).not.toContain("attach");
+    expect(formatReopen({ taskId: "x_1", keyword: "x", reattach: true })).toContain("attach");
+    expect(formatReopen({ taskId: "x_1", keyword: "x", reattach: false })).not.toContain("attach");
   });
 });
 
@@ -228,9 +223,7 @@ describe("formatRead", () => {
   });
 
   it("lists questions waiting on me with an answer hint", () => {
-    const text = formatRead(
-      viewOf({ openForMe: [{ id: 3, asker: "pair-B", text: "retry?" }] }),
-    );
+    const text = formatRead(viewOf({ openForMe: [{ id: 3, asker: "pair-B", text: "retry?" }] }));
     expect(text).toContain("[#3] (pair-B) retry?");
     expect(text).toContain("answer each by its #id");
   });

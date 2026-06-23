@@ -97,21 +97,16 @@ export const close = async (
 ): Promise<Result<{ taskId: string; keyword: string }>> => {
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   if (!binding) return err("NO_ACTIVE_TASK", "no active task to close");
-  return withExistingTask(
-    ctx.goriHome,
-    binding.taskId,
-    ACTIVE_TASK_GONE,
-    async (meta) => {
-      if (meta.status === "closed") {
-        return err("ALREADY_CLOSED", "task is already closed");
-      }
-      await writeMeta(ctx.goriHome, {
-        ...markModified(meta, binding.side, formatDisplay(now)),
-        status: "closed",
-      });
-      return ok({ taskId: meta.taskId, keyword: meta.keyword });
-    },
-  );
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    if (meta.status === "closed") {
+      return err("ALREADY_CLOSED", "task is already closed");
+    }
+    await writeMeta(ctx.goriHome, {
+      ...markModified(meta, binding.side, formatDisplay(now)),
+      status: "closed",
+    });
+    return ok({ taskId: meta.taskId, keyword: meta.keyword });
+  });
 };
 
 /** Reopen a closed task by id, or the session's lingering pointer when none is given. */

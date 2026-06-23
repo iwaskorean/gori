@@ -1,18 +1,8 @@
 import { formatDisplay, noteExists, readMeta, writeMeta } from "../store.js";
-import {
-  clearSession,
-  readSession,
-  resolveSideByCwd,
-  writeSession,
-} from "../session.js";
+import { clearSession, readSession, resolveSideByCwd, writeSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Meta, Result, Side } from "../types.js";
-import {
-  guardTaskId,
-  readAllMeta,
-  rejectIfClosed,
-  withExistingTask,
-} from "./shared.js";
+import { guardTaskId, readAllMeta, rejectIfClosed, withExistingTask } from "./shared.js";
 
 // ---------- link (pairing) ----------
 
@@ -72,10 +62,7 @@ export const link = async (
         return err("NO_PAIRABLE_TASK", "task is already paired");
       }
       if (session?.taskId === meta.taskId && session.side === "pair-A") {
-        return err(
-          "NO_PAIRABLE_TASK",
-          "cannot pair with a task this session started",
-        );
+        return err("NO_PAIRABLE_TASK", "cannot pair with a task this session started");
       }
       const at = formatDisplay(now);
       await writeMeta(ctx.goriHome, {
@@ -109,9 +96,7 @@ export const attachCandidates = async (
   const candidates = (await readAllMeta(ctx.goriHome))
     .filter((m) => m.status === "in-progress")
     .map((m) => ({ meta: m, side: resolveSideByCwd(m, ctx.cwd) }))
-    .filter(
-      (x): x is { meta: Meta; side: Side | "ambiguous" } => x.side !== null,
-    )
+    .filter((x): x is { meta: Meta; side: Side | "ambiguous" } => x.side !== null)
     .map(({ meta, side }) => ({
       taskId: meta.taskId,
       keyword: meta.keyword,
@@ -127,11 +112,7 @@ export const attachCandidates = async (
  * different directory) but must already be registered; otherwise fall back to
  * inferring from cwd.
  */
-const resolveAttachSide = (
-  meta: Meta,
-  cwd: string,
-  explicit?: Side,
-): Result<Side> => {
+const resolveAttachSide = (meta: Meta, cwd: string, explicit?: Side): Result<Side> => {
   if (explicit) {
     const dir = explicit === "pair-A" ? meta.pairA.dir : meta.pairB.dir;
     if (dir === null) {
@@ -185,9 +166,7 @@ export const attach = async (
 
 // ---------- detach ----------
 
-export const detach = async (
-  ctx: Ctx,
-): Promise<Result<{ taskId: string | null }>> => {
+export const detach = async (ctx: Ctx): Promise<Result<{ taskId: string | null }>> => {
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
   await clearSession(ctx.goriHome, ctx.sessionKey);
   return ok({ taskId: binding?.taskId ?? null });

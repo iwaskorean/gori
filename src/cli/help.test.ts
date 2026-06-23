@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  renderHelpOverview,
-  renderVerbHelp,
-  suggestVerbs,
-  VERBS,
-} from "./help.js";
+import { renderHelpOverview, renderVerbHelp, suggestVerbs, VERBS } from "./help.js";
 
 describe("renderHelpOverview", () => {
   it("lists every verb exactly once, grouped under category titles", () => {

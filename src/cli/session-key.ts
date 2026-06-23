@@ -25,8 +25,7 @@ const toSafeKey = (raw: string): string =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 64) || "session";
 
-const hash16 = (raw: string): string =>
-  createHash("sha256").update(raw).digest("hex").slice(0, 16);
+const hash16 = (raw: string): string => createHash("sha256").update(raw).digest("hex").slice(0, 16);
 
 /**
  * Derive the CLI session key. Prefer the innermost session-identifying env var;

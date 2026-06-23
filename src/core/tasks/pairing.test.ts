@@ -69,9 +69,7 @@ describe("link (pairing)", () => {
   });
 
   it("rejects a non-existent task", async () => {
-    expect(errorOf(await link(B, { taskId: "ghost_20260101-000000" })).code).toBe(
-      "TASK_NOT_FOUND",
-    );
+    expect(errorOf(await link(B, { taskId: "ghost_20260101-000000" })).code).toBe("TASK_NOT_FOUND");
   });
 
   it("rejects pairing into a closed task", async () => {
@@ -134,9 +132,7 @@ describe("attach (reconnect / switch tasks)", () => {
     await link(Bsame, { taskId }, T2);
 
     const X = ctxOf(home, "/work/api", "keyX");
-    expect(unwrap(await attach(X, { taskId, side: "pair-B" })).side).toBe(
-      "pair-B",
-    );
+    expect(unwrap(await attach(X, { taskId, side: "pair-B" })).side).toBe("pair-B");
   });
 
   it("rejects a cwd that matches neither side", async () => {
@@ -148,15 +144,13 @@ describe("attach (reconnect / switch tasks)", () => {
   it("rejects an explicit side that has not joined the task", async () => {
     const { taskId } = unwrap(await create(A, { keyword: "solo" }, T1));
     // pair-B never linked, so its directory is unregistered
-    expect(errorOf(await attach(C, { taskId, side: "pair-B" })).code).toBe(
-      "NOT_REGISTERED",
-    );
+    expect(errorOf(await attach(C, { taskId, side: "pair-B" })).code).toBe("NOT_REGISTERED");
   });
 
   it("rejects a non-existent task", async () => {
-    expect(
-      errorOf(await attach(A, { taskId: "ghost_20260101-000000" })).code,
-    ).toBe("TASK_NOT_FOUND");
+    expect(errorOf(await attach(A, { taskId: "ghost_20260101-000000" })).code).toBe(
+      "TASK_NOT_FOUND",
+    );
   });
 
   it("refuses to attach a closed task", async () => {
@@ -186,9 +180,7 @@ describe("attach (reconnect / switch tasks)", () => {
     await link(Bsame, { taskId }, T2);
 
     const probe = ctxOf(home, "/work/api", "keyProbe");
-    expect(unwrap(await attachCandidates(probe)).candidates[0]?.side).toBe(
-      "ambiguous",
-    );
+    expect(unwrap(await attachCandidates(probe)).candidates[0]?.side).toBe("ambiguous");
   });
 });
 
@@ -196,19 +188,13 @@ describe("path-traversal guard", () => {
   const ESCAPE = "../../escape";
 
   it("rejects link with a path-unsafe id before any lookup", async () => {
-    expect(errorOf(await link(B, { taskId: ESCAPE }, T2)).code).toBe(
-      "INVALID_TASK_ID",
-    );
+    expect(errorOf(await link(B, { taskId: ESCAPE }, T2)).code).toBe("INVALID_TASK_ID");
   });
   it("rejects attach with a path-unsafe id", async () => {
-    expect(errorOf(await attach(A, { taskId: ESCAPE })).code).toBe(
-      "INVALID_TASK_ID",
-    );
+    expect(errorOf(await attach(A, { taskId: ESCAPE })).code).toBe("INVALID_TASK_ID");
   });
   it("rejects reopen with a path-unsafe id", async () => {
-    expect(errorOf(await reopen(A, { taskId: ESCAPE }, T2)).code).toBe(
-      "INVALID_TASK_ID",
-    );
+    expect(errorOf(await reopen(A, { taskId: ESCAPE }, T2)).code).toBe("INVALID_TASK_ID");
   });
 
   it("treats a safe id naming a stray file as not-found, not a crash", async () => {
@@ -217,8 +203,6 @@ describe("path-traversal guard", () => {
     // that to null, so the verb reports TASK_NOT_FOUND instead of throwing.
     unwrap(await create(A, { keyword: "real" }, T1)); // ensure tasks/ exists
     await writeFile(join(home, "tasks", ".DS_Store"), "finder junk");
-    expect(errorOf(await link(B, { taskId: ".DS_Store" }, T2)).code).toBe(
-      "TASK_NOT_FOUND",
-    );
+    expect(errorOf(await link(B, { taskId: ".DS_Store" }, T2)).code).toBe("TASK_NOT_FOUND");
   });
 });

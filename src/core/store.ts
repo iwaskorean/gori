@@ -28,15 +28,13 @@ export const slugify = (keyword: string): string => {
     .replace(/\s+/g, "-")
     // Drop any leftover (non-whitespace) control chars so a generated id always
     // passes isSafeTaskId; whitespace was already turned into hyphens above.
+    // eslint-disable-next-line no-control-regex -- matching control chars is the point
     .replace(/[\x00-\x1f]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
   // Cap by code point (Array.from iterates code points, so an astral character
   // is never split), then strip a hyphen the cut may leave dangling.
-  const slug = Array.from(cleaned)
-    .slice(0, MAX_SLUG_LENGTH)
-    .join("")
-    .replace(/-+$/g, "");
+  const slug = Array.from(cleaned).slice(0, MAX_SLUG_LENGTH).join("").replace(/-+$/g, "");
   return slug || "task";
 };
 
@@ -55,6 +53,7 @@ export const buildTaskId = (keyword: string, now: Date): string =>
 // filesystem-reserved or control characters, and not be a relative-path token. (This
 // is a necessary guard, not a full id grammar — a harmless value like a stray
 // space simply fails to resolve.)
+// eslint-disable-next-line no-control-regex -- rejecting control chars is the point
 const UNSAFE_SEGMENT = /[/\\:*?"<>|\x00-\x1f]/;
 export const isSafeTaskId = (id: string): boolean =>
   id.length > 0 && !UNSAFE_SEGMENT.test(id) && id !== "." && id !== "..";
@@ -67,15 +66,14 @@ export const formatDisplay = (now: Date): string =>
 // ---------- fs helpers ----------
 
 const pathExists = (p: string): Promise<boolean> =>
-  access(p).then(() => true).catch(() => false);
+  access(p)
+    .then(() => true)
+    .catch(() => false);
 
 let tmpCounter = 0;
 
 /** Write to a temp file then rename (atomic replace). Assumes the same filesystem. */
-export const writeFileAtomic = async (
-  path: string,
-  content: string,
-): Promise<void> => {
+export const writeFileAtomic = async (path: string, content: string): Promise<void> => {
   const tmp = `${path}.${process.pid}.${(tmpCounter += 1)}.tmp`;
   await writeFile(tmp, content, "utf8");
   await rename(tmp, path);
@@ -87,10 +85,7 @@ export const metaPath = (goriHome: string, taskId: string): string =>
   join(taskDir(goriHome, taskId), "meta.yml");
 
 /** If baseId already exists, append -2, -3, ... to guarantee a unique id. */
-export const ensureUniqueTaskId = async (
-  goriHome: string,
-  baseId: string,
-): Promise<string> => {
+export const ensureUniqueTaskId = async (goriHome: string, baseId: string): Promise<string> => {
   if (!(await pathExists(taskDir(goriHome, baseId)))) return baseId;
   for (let n = 2; ; n += 1) {
     const candidate = `${baseId}-${n}`;
@@ -139,10 +134,7 @@ export const metaFromYaml = (text: string): Meta => {
 
 // ---------- meta read/write ----------
 
-export const readMeta = async (
-  goriHome: string,
-  taskId: string,
-): Promise<Meta | null> => {
+export const readMeta = async (goriHome: string, taskId: string): Promise<Meta | null> => {
   try {
     return metaFromYaml(await readFile(metaPath(goriHome, taskId), "utf8"));
   } catch (error) {
@@ -150,10 +142,7 @@ export const readMeta = async (
     // segment is a file where a directory is expected — e.g. a stray .DS_Store
     // file sitting in tasks/ that readdir surfaced as a task id. Both mean
     // "no task here", so report absence rather than letting the read throw.
-    if (
-      isErrnoException(error) &&
-      (error.code === "ENOENT" || error.code === "ENOTDIR")
-    ) {
+    if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
       return null;
     }
     throw error;
@@ -199,10 +188,7 @@ export const noteExists = (goriHome: string, taskId: string): Promise<boolean> =
   pathExists(notePath(goriHome, taskId));
 
 /** Read a task's note.md, or null when no note has been written yet (lazy file). */
-export const readNote = async (
-  goriHome: string,
-  taskId: string,
-): Promise<string | null> => {
+export const readNote = async (goriHome: string, taskId: string): Promise<string | null> => {
   try {
     return await readFile(notePath(goriHome, taskId), "utf8");
   } catch (error) {
@@ -217,10 +203,7 @@ export const specPath = (goriHome: string, taskId: string): string =>
   join(taskDir(goriHome, taskId), "spec.md");
 
 /** Read and parse a task's spec.md, or an empty spec when the file is absent. */
-export const readSpec = async (
-  goriHome: string,
-  taskId: string,
-): Promise<SpecDoc> => {
+export const readSpec = async (goriHome: string, taskId: string): Promise<SpecDoc> => {
   try {
     return parseSpec(await readFile(specPath(goriHome, taskId), "utf8"));
   } catch (error) {
@@ -233,11 +216,7 @@ export const readSpec = async (
  * Serialize and atomically write a task's spec.md. The task must already exist.
  * Lock-free: callers that also touch meta hold withTaskLock to keep the pair atomic.
  */
-export const writeSpec = async (
-  goriHome: string,
-  taskId: string,
-  doc: SpecDoc,
-): Promise<void> => {
+export const writeSpec = async (goriHome: string, taskId: string, doc: SpecDoc): Promise<void> => {
   await writeFileAtomic(specPath(goriHome, taskId), serializeSpec(doc));
 };
 

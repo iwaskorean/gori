@@ -33,10 +33,7 @@ export const writeSession = async (
   binding: SessionBinding,
 ): Promise<void> => {
   await mkdir(sessionsDir(goriHome), { recursive: true });
-  await writeFileAtomic(
-    sessionFilePath(goriHome, key),
-    `${binding.taskId}\t${binding.side}`,
-  );
+  await writeFileAtomic(sessionFilePath(goriHome, key), `${binding.taskId}\t${binding.side}`);
 };
 
 /** Clear the active binding (detach). No-op if it doesn't exist. */
@@ -47,10 +44,7 @@ export const clearSession = (goriHome: string, key: string): Promise<void> =>
  * Bump the session file's mtime to mark activity, so idle-based cleanup measures
  * time since the last command rather than since binding. No-op when no session.
  */
-export const touchSession = async (
-  goriHome: string,
-  key: string,
-): Promise<void> => {
+export const touchSession = async (goriHome: string, key: string): Promise<void> => {
   const now = new Date();
   try {
     await utimes(sessionFilePath(goriHome, key), now, now);

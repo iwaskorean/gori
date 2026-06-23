@@ -38,11 +38,7 @@ describe("list", () => {
     await writeMeta(home, closed);
 
     const { tasks } = unwrap(await list(A, T3));
-    expect(tasks.map((t) => t.status)).toEqual([
-      "in-progress",
-      "in-progress",
-      "closed",
-    ]);
+    expect(tasks.map((t) => t.status)).toEqual(["in-progress", "in-progress", "closed"]);
     expect(tasks[0]?.taskId).toBe(two.taskId); // most recent in-progress first
     expect(tasks[0]?.isActive).toBe(true); // A is bound to "two"
     expect(tasks[2]?.taskId).toBe("done_20260101-101000");
@@ -133,14 +129,10 @@ describe("read", () => {
     await ask(B, { question: "Which endpoint?" }, T3); // waits on A
 
     const forB = unwrap(await read(B));
-    expect(forB.openForMe).toEqual([
-      { id: 1, asker: "pair-A", text: "Retry policy?" },
-    ]);
+    expect(forB.openForMe).toEqual([{ id: 1, asker: "pair-A", text: "Retry policy?" }]);
 
     const forA = unwrap(await read(A));
-    expect(forA.openForMe).toEqual([
-      { id: 2, asker: "pair-B", text: "Which endpoint?" },
-    ]);
+    expect(forA.openForMe).toEqual([{ id: 2, asker: "pair-B", text: "Which endpoint?" }]);
   });
 
   it("fills summary question counts even when reading the log only", async () => {

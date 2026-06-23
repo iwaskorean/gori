@@ -9,9 +9,7 @@ describe("resolveGoriHome", () => {
   });
 
   it("uses $GORI_HOME when set (test isolation)", () => {
-    expect(resolveGoriHome({ GORI_HOME: "/tmp/.gori-test" })).toBe(
-      "/tmp/.gori-test",
-    );
+    expect(resolveGoriHome({ GORI_HOME: "/tmp/.gori-test" })).toBe("/tmp/.gori-test");
   });
 
   it("ignores a blank $GORI_HOME and falls back to the default", () => {
