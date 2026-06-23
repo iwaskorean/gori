@@ -47,6 +47,17 @@ const makeDeps = (execResults: ExecOutcome[] = []) => {
       mkdirSync(dirname(dest), { recursive: true });
       cpSync(source, dest, { recursive: true, force: true });
     },
+    readText: (path) => {
+      try {
+        return readFileSync(path, "utf8");
+      } catch {
+        return null;
+      }
+    },
+    writeText: (path, text) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+    },
     homeDir,
     skillSource,
     out: (text) => out.push(text),
@@ -112,16 +123,127 @@ describe("runSetup --claude", () => {
   });
 });
 
+describe("runSetup --cursor", () => {
+  const cursorConfig = () => join(homeDir, ".cursor", "mcp.json");
+
+  it("creates mcp.json with the gori server when none exists", () => {
+    const { deps } = makeDeps();
+    expect(runSetup("--cursor", deps)).toBe(0);
+    const config = JSON.parse(readFileSync(cursorConfig(), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(config.mcpServers.gori).toEqual({ command: "gori", args: ["mcp"] });
+  });
+
+  it("merges into existing servers without clobbering them", () => {
+    mkdirSync(join(homeDir, ".cursor"), { recursive: true });
+    writeFileSync(
+      cursorConfig(),
+      JSON.stringify({ mcpServers: { other: { command: "x" } } }),
+    );
+    runSetup("--cursor", makeDeps().deps);
+    const config = JSON.parse(readFileSync(cursorConfig(), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(config.mcpServers.other).toEqual({ command: "x" });
+    expect(config.mcpServers.gori).toEqual({ command: "gori", args: ["mcp"] });
+  });
+
+  it("is idempotent on re-run", () => {
+    runSetup("--cursor", makeDeps().deps);
+    const second = makeDeps();
+    expect(runSetup("--cursor", second.deps)).toBe(0);
+    expect(second.out.join("\n")).toContain("already");
+  });
+
+  it("leaves a malformed config untouched and warns", () => {
+    mkdirSync(join(homeDir, ".cursor"), { recursive: true });
+    writeFileSync(cursorConfig(), "{ not json");
+    const { deps, errOut } = makeDeps();
+    expect(runSetup("--cursor", deps)).toBe(1);
+    expect(readFileSync(cursorConfig(), "utf8")).toBe("{ not json");
+    expect(errOut.join("\n")).toContain("could not update");
+  });
+
+  it("warns and leaves the file untouched when the root is not a JSON object", () => {
+    mkdirSync(join(homeDir, ".cursor"), { recursive: true });
+    writeFileSync(cursorConfig(), "[1, 2, 3]");
+    const { deps, errOut } = makeDeps();
+    expect(runSetup("--cursor", deps)).toBe(1);
+    expect(readFileSync(cursorConfig(), "utf8")).toBe("[1, 2, 3]");
+    expect(errOut.join("\n")).toContain("could not update");
+  });
+
+  it("treats a non-object mcpServers as empty and still adds gori", () => {
+    mkdirSync(join(homeDir, ".cursor"), { recursive: true });
+    writeFileSync(cursorConfig(), JSON.stringify({ mcpServers: "oops" }));
+    expect(runSetup("--cursor", makeDeps().deps)).toBe(0);
+    const config = JSON.parse(readFileSync(cursorConfig(), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(config.mcpServers.gori).toEqual({ command: "gori", args: ["mcp"] });
+  });
+
+  it("installs no skill (Claude Code only)", () => {
+    const { deps, skillDest } = makeDeps();
+    runSetup("--cursor", deps);
+    expect(existsSync(join(skillDest, "SKILL.md"))).toBe(false);
+  });
+});
+
+describe("runSetup --codex", () => {
+  const codexConfig = () => join(homeDir, ".codex", "config.toml");
+
+  it("creates config.toml with the [mcp_servers.gori] table when none exists", () => {
+    const { deps } = makeDeps();
+    expect(runSetup("--codex", deps)).toBe(0);
+    const toml = readFileSync(codexConfig(), "utf8");
+    expect(toml).toContain("[mcp_servers.gori]");
+    expect(toml).toContain('command = "gori"');
+    expect(toml).toContain('args = ["mcp"]');
+  });
+
+  it("appends without disturbing existing config", () => {
+    mkdirSync(join(homeDir, ".codex"), { recursive: true });
+    writeFileSync(codexConfig(), 'model = "o3"\n');
+    runSetup("--codex", makeDeps().deps);
+    const toml = readFileSync(codexConfig(), "utf8");
+    expect(toml).toContain('model = "o3"');
+    expect(toml).toContain("[mcp_servers.gori]");
+  });
+
+  it("is idempotent when the table is already present", () => {
+    runSetup("--codex", makeDeps().deps);
+    const before = readFileSync(codexConfig(), "utf8");
+    const second = makeDeps();
+    expect(runSetup("--codex", second.deps)).toBe(0);
+    expect(readFileSync(codexConfig(), "utf8")).toBe(before);
+    expect(second.out.join("\n")).toContain("already");
+  });
+
+  it("warns when the config cannot be written", () => {
+    const base = makeDeps();
+    const deps: SetupDeps = {
+      ...base.deps,
+      writeText: () => {
+        throw new Error("disk full");
+      },
+    };
+    expect(runSetup("--codex", deps)).toBe(1);
+    expect(base.errOut.join("\n")).toContain("could not update");
+  });
+});
+
 describe("runSetup target validation", () => {
   it("prints usage when no target is given", () => {
     const { deps, errOut } = makeDeps();
     expect(runSetup(undefined, deps)).toBe(1);
-    expect(errOut.join("\n")).toContain("usage: gori setup --claude");
+    expect(errOut.join("\n")).toContain("usage: gori setup");
   });
 
   it("rejects an unsupported target", () => {
     const { deps, errOut } = makeDeps();
-    expect(runSetup("--cursor", deps)).toBe(1);
+    expect(runSetup("--vscode", deps)).toBe(1);
     expect(errOut.join("\n")).toContain("unsupported setup target");
   });
 });

@@ -110,10 +110,10 @@ type TopicName = (typeof TOPIC_NAMES)[number];
 
 const TOPICS: Record<TopicName, VerbHelp> = {
   setup: {
-    signature: "gori setup --claude",
+    signature: "gori setup --<agent>",
     summary:
-      "register the MCP server (user scope) and install the /gori skill; " +
-      "re-run to update",
+      "register the MCP server with an agent (--claude also installs the /gori " +
+      "skill; --cursor/--codex are experimental); re-run to update",
     example: "gori setup --claude",
   },
   mcp: {
