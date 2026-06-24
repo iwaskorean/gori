@@ -75,7 +75,7 @@ describe("classifyLaunch", () => {
   it("registers npx when run from an npm npx cache path", () => {
     expect(
       classifyLaunch("/Users/me/.npm/_npx/abc123/node_modules/gori/dist/cli/index.js"),
-    ).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+    ).toEqual({ command: "npx", args: ["-y", "gori-mcp", "mcp"] });
   });
 
   it("registers the bare gori binary for a global/local install path", () => {
@@ -94,7 +94,7 @@ describe("classifyLaunch", () => {
   it("handles a Windows backslash npx cache path", () => {
     expect(
       classifyLaunch("C:\\Users\\me\\npm-cache\\_npx\\h\\node_modules\\gori\\dist\\cli\\index.js"),
-    ).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+    ).toEqual({ command: "npx", args: ["-y", "gori-mcp", "mcp"] });
   });
 });
 
@@ -261,14 +261,14 @@ describe("runSetup --codex", () => {
 });
 
 describe("runSetup launch command (deps.mcpLaunch)", () => {
-  const npx: McpLaunch = { command: "npx", args: ["-y", "gori", "mcp"] };
+  const npx: McpLaunch = { command: "npx", args: ["-y", "gori-mcp", "mcp"] };
 
   it("claude: threads the npx launcher into `claude mcp add`", () => {
     const { deps, calls } = makeDeps([{ code: 1 }, { code: 0 }], npx);
     expect(runSetup("--claude", deps)).toBe(0);
     expect(calls[1]).toEqual({
       command: "claude",
-      args: ["mcp", "add", "--scope", "user", "gori", "--", "npx", "-y", "gori", "mcp"],
+      args: ["mcp", "add", "--scope", "user", "gori", "--", "npx", "-y", "gori-mcp", "mcp"],
     });
   });
 
@@ -278,7 +278,7 @@ describe("runSetup launch command (deps.mcpLaunch)", () => {
     const config = JSON.parse(readFileSync(join(homeDir, ".cursor", "mcp.json"), "utf8")) as {
       mcpServers: Record<string, unknown>;
     };
-    expect(config.mcpServers.gori).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+    expect(config.mcpServers.gori).toEqual({ command: "npx", args: ["-y", "gori-mcp", "mcp"] });
   });
 
   it("codex: writes the npx launcher into config.toml", () => {
@@ -286,7 +286,7 @@ describe("runSetup launch command (deps.mcpLaunch)", () => {
     expect(runSetup("--codex", deps)).toBe(0);
     const toml = readFileSync(join(homeDir, ".codex", "config.toml"), "utf8");
     expect(toml).toContain('command = "npx"');
-    expect(toml).toContain('args = ["-y", "gori", "mcp"]');
+    expect(toml).toContain('args = ["-y", "gori-mcp", "mcp"]');
   });
 });
 

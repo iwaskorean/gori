@@ -37,7 +37,7 @@ const claudeManualAdd = (launch: McpLaunch): string =>
 /**
  * Classify the running CLI module's path into how agents should launch the MCP
  * server. npm's npx runs the package from a cache directory named `_npx` (e.g.
- * `~/.npm/_npx/<hash>/...`), so an npx-launched setup registers `npx -y gori mcp`
+ * `~/.npm/_npx/<hash>/...`), so an npx-launched setup registers `npx -y gori-mcp mcp`
  * (no global install needed); a global/local install has no such path segment and
  * registers the bare `gori` binary (fast, works offline). `_npx` is matched as a
  * full path segment, not a bare substring, so an install path that merely contains
@@ -47,7 +47,7 @@ const claudeManualAdd = (launch: McpLaunch): string =>
 export const classifyLaunch = (modulePath: string): McpLaunch => {
   const isLaunchedViaNpx = modulePath.split(/[/\\]/).includes("_npx");
   return isLaunchedViaNpx
-    ? { command: "npx", args: ["-y", "gori", "mcp"] }
+    ? { command: "npx", args: ["-y", "gori-mcp", "mcp"] }
     : { command: "gori", args: ["mcp"] };
 };
 
@@ -66,7 +66,7 @@ export type SetupDeps = {
   /** Absolute path to the bundled skills/gori directory. */
   skillSource: string;
   /**
-   * How the agent should launch the MCP server (`gori mcp` vs `npx -y gori mcp`),
+   * How the agent should launch the MCP server (`gori mcp` vs `npx -y gori-mcp mcp`),
    * chosen from how setup itself was invoked — see createSetupDeps.
    */
   mcpLaunch: McpLaunch;

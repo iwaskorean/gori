@@ -101,7 +101,7 @@ Requires Node.js 22+.
 Set up Gori for your agent with one command. `setup` takes an agent flag: `--claude` is the verified path and installs the `/gori` skill; `--cursor` and `--codex` register Gori for those agents too (experimental, no skill). The quickest start is npx, with no global install:
 
 ```
-npx gori setup --claude     # or --cursor, --codex
+npx gori-mcp setup --claude     # or --cursor, --codex
 ```
 
 This is idempotent: it registers the user-scoped MCP server (and, for `--claude`, the `/gori` skill), then asks you to restart the session.
@@ -109,7 +109,7 @@ This is idempotent: it registers the user-scoped MCP server (and, for `--claude`
 Want the terminal CLI too (`gori status`, `gori log`, …), or want to skip npx's per-launch cold start? Install globally instead, then run the same setup:
 
 ```
-npm install -g gori
+npm install -g gori-mcp
 gori setup --claude     # or --cursor, --codex
 ```
 
@@ -119,7 +119,7 @@ Confirm it's wired by asking your agent to check the gori status, which exercise
 
 **After a restart**, a session no longer remembers its active task, though the task data is preserved. Ask the agent to reconnect with `gori attach`, which finds the task by the session's current directory.
 
-**Updates.** With the npx setup, the MCP server already tracks the latest published version, so there is nothing to run; re-run `npx gori setup --claude` to refresh the `/gori` skill. With a global install, run `npm install -g gori@latest` and re-run `gori setup --claude`. Your data in `~/.gori` is preserved either way.
+**Updates.** With the npx setup, the MCP server already tracks the latest published version, so there is nothing to run; re-run `npx gori-mcp setup --claude` to refresh the `/gori` skill. With a global install, run `npm install -g gori-mcp@latest` and re-run `gori setup --claude`. Your data in `~/.gori` is preserved either way.
 
 ## The three surfaces
 
@@ -131,7 +131,7 @@ Gori is one core exposed three ways:
 | **`/gori` skill** | `/gori`       | Claude Code only, an optional enhancement layering the pairing choreography on top of the MCP tools. |
 | **CLI**           | `gori <verb>` | Direct terminal use, scripting, and debugging (needs the global install).                            |
 
-Today, `gori setup --claude` is the verified path: it registers the MCP server and installs the `/gori` skill (a Claude Code–only enhancement). But the MCP server is a standard stdio server, so any MCP client can use it: `gori setup --cursor` and `gori setup --codex` register it for those agents too (**experimental, not yet verified end-to-end**), and any other client can point at `gori mcp` (or `npx -y gori mcp`) by hand.
+Today, `gori setup --claude` is the verified path: it registers the MCP server and installs the `/gori` skill (a Claude Code–only enhancement). But the MCP server is a standard stdio server, so any MCP client can use it: `gori setup --cursor` and `gori setup --codex` register it for those agents too (**experimental, not yet verified end-to-end**), and any other client can point at `gori mcp` (or `npx -y gori-mcp mcp`) by hand.
 
 ## Where Gori is headed
 
