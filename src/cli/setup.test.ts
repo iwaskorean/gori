@@ -10,8 +10,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { runSetup } from "./setup.js";
-import type { ExecOutcome, SetupDeps } from "./setup.js";
+import { classifyLaunch, runSetup } from "./setup.js";
+import type { ExecOutcome, McpLaunch, SetupDeps } from "./setup.js";
 
 type Call = { command: string; args: string[] };
 
@@ -33,7 +33,10 @@ afterEach(() => {
 });
 
 /** Build deps with a queue of exec outcomes and a real temp-dir copy. */
-const makeDeps = (execResults: ExecOutcome[] = []) => {
+const makeDeps = (
+  execResults: ExecOutcome[] = [],
+  mcpLaunch: McpLaunch = { command: "gori", args: ["mcp"] },
+) => {
   const calls: Call[] = [];
   const out: string[] = [];
   const errOut: string[] = [];
@@ -60,12 +63,40 @@ const makeDeps = (execResults: ExecOutcome[] = []) => {
     },
     homeDir,
     skillSource,
+    mcpLaunch,
     out: (text) => out.push(text),
     errOut: (text) => errOut.push(text),
   };
   const skillDest = join(homeDir, ".claude", "skills", "gori");
   return { deps, calls, out, errOut, skillDest };
 };
+
+describe("classifyLaunch", () => {
+  it("registers npx when run from an npm npx cache path", () => {
+    expect(
+      classifyLaunch("/Users/me/.npm/_npx/abc123/node_modules/gori/dist/cli/index.js"),
+    ).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+  });
+
+  it("registers the bare gori binary for a global/local install path", () => {
+    expect(classifyLaunch("/usr/local/lib/node_modules/gori/dist/cli/index.js")).toEqual({
+      command: "gori",
+      args: ["mcp"],
+    });
+  });
+
+  it("matches _npx as a full path segment, not a substring", () => {
+    expect(
+      classifyLaunch("/Users/me/projects/my_npx_tool/node_modules/gori/dist/cli/index.js"),
+    ).toEqual({ command: "gori", args: ["mcp"] });
+  });
+
+  it("handles a Windows backslash npx cache path", () => {
+    expect(
+      classifyLaunch("C:\\Users\\me\\npm-cache\\_npx\\h\\node_modules\\gori\\dist\\cli\\index.js"),
+    ).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+  });
+});
 
 describe("runSetup --claude", () => {
   it("adds the MCP server when it is not yet registered", () => {
@@ -226,6 +257,36 @@ describe("runSetup --codex", () => {
     };
     expect(runSetup("--codex", deps)).toBe(1);
     expect(base.errOut.join("\n")).toContain("could not update");
+  });
+});
+
+describe("runSetup launch command (deps.mcpLaunch)", () => {
+  const npx: McpLaunch = { command: "npx", args: ["-y", "gori", "mcp"] };
+
+  it("claude: threads the npx launcher into `claude mcp add`", () => {
+    const { deps, calls } = makeDeps([{ code: 1 }, { code: 0 }], npx);
+    expect(runSetup("--claude", deps)).toBe(0);
+    expect(calls[1]).toEqual({
+      command: "claude",
+      args: ["mcp", "add", "--scope", "user", "gori", "--", "npx", "-y", "gori", "mcp"],
+    });
+  });
+
+  it("cursor: writes the npx launcher into mcp.json", () => {
+    const { deps } = makeDeps([], npx);
+    expect(runSetup("--cursor", deps)).toBe(0);
+    const config = JSON.parse(readFileSync(join(homeDir, ".cursor", "mcp.json"), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(config.mcpServers.gori).toEqual({ command: "npx", args: ["-y", "gori", "mcp"] });
+  });
+
+  it("codex: writes the npx launcher into config.toml", () => {
+    const { deps } = makeDeps([], npx);
+    expect(runSetup("--codex", deps)).toBe(0);
+    const toml = readFileSync(join(homeDir, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain('command = "npx"');
+    expect(toml).toContain('args = ["-y", "gori", "mcp"]');
   });
 });
 

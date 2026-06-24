@@ -16,15 +16,40 @@ import { fileURLToPath } from "node:url";
 import { VERSION } from "../core/index.js";
 import { DONE, FAIL, NEXT } from "./glyphs.js";
 
-// The MCP server's launch command, in one place so every agent registers the
-// same `gori mcp` and the three install paths cannot drift.
-const MCP_COMMAND = "gori";
-const MCP_ARGS = ["mcp"];
+/** The command + args an agent uses to launch gori's MCP server. */
+export type McpLaunch = { command: string; args: string[] };
 
-// Claude Code registers via its own CLI; the spawned args and the manual
-// fallback we print are derived from the same source so they cannot drift.
-const CLAUDE_ADD_ARGS = ["mcp", "add", "--scope", "user", "gori", "--", MCP_COMMAND, ...MCP_ARGS];
-const CLAUDE_MANUAL_ADD = ["claude", ...CLAUDE_ADD_ARGS].join(" ");
+// Claude Code registers via its own CLI; the add args and the manual-fallback
+// string both derive from one launch command so they cannot drift.
+const claudeAddArgs = (launch: McpLaunch): string[] => [
+  "mcp",
+  "add",
+  "--scope",
+  "user",
+  "gori",
+  "--",
+  launch.command,
+  ...launch.args,
+];
+const claudeManualAdd = (launch: McpLaunch): string =>
+  ["claude", ...claudeAddArgs(launch)].join(" ");
+
+/**
+ * Classify the running CLI module's path into how agents should launch the MCP
+ * server. npm's npx runs the package from a cache directory named `_npx` (e.g.
+ * `~/.npm/_npx/<hash>/...`), so an npx-launched setup registers `npx -y gori mcp`
+ * (no global install needed); a global/local install has no such path segment and
+ * registers the bare `gori` binary (fast, works offline). `_npx` is matched as a
+ * full path segment, not a bare substring, so an install path that merely contains
+ * the text is not misread. This is npm-npx-specific by design — pnpm/yarn/bun
+ * ephemeral runners are not detected. Exported for unit testing.
+ */
+export const classifyLaunch = (modulePath: string): McpLaunch => {
+  const isLaunchedViaNpx = modulePath.split(/[/\\]/).includes("_npx");
+  return isLaunchedViaNpx
+    ? { command: "npx", args: ["-y", "gori", "mcp"] }
+    : { command: "gori", args: ["mcp"] };
+};
 
 /** A spawned command either ran (carrying its exit code) or could not start. */
 export type ExecOutcome = { code: number } | { error: "not-found" };
@@ -40,6 +65,11 @@ export type SetupDeps = {
   homeDir: string;
   /** Absolute path to the bundled skills/gori directory. */
   skillSource: string;
+  /**
+   * How the agent should launch the MCP server (`gori mcp` vs `npx -y gori mcp`),
+   * chosen from how setup itself was invoked — see createSetupDeps.
+   */
+  mcpLaunch: McpLaunch;
   out: (text: string) => void;
   errOut: (text: string) => void;
 };
@@ -48,10 +78,12 @@ export type SetupDeps = {
 
 /** Register the user-scoped MCP server, but only when it is not already there. */
 const registerClaude = (deps: SetupDeps): boolean => {
+  const addArgs = claudeAddArgs(deps.mcpLaunch);
+  const manualAdd = claudeManualAdd(deps.mcpLaunch);
   const probe = deps.exec("claude", ["mcp", "get", "gori"]);
   if ("error" in probe) {
     deps.errOut(`${FAIL} MCP server — \`claude\` CLI not found on PATH`);
-    deps.errOut(`    once it is installed, register manually: ${CLAUDE_MANUAL_ADD}`);
+    deps.errOut(`    once it is installed, register manually: ${manualAdd}`);
     return false;
   }
   // `claude mcp get` exits 0 when the server exists, non-zero when it does not.
@@ -59,10 +91,10 @@ const registerClaude = (deps: SetupDeps): boolean => {
     deps.out(`${DONE} MCP server already registered (user scope) — skipped`);
     return true;
   }
-  const add = deps.exec("claude", CLAUDE_ADD_ARGS);
+  const add = deps.exec("claude", addArgs);
   if ("error" in add || add.code !== 0) {
     deps.errOut(`${FAIL} MCP server registration failed`);
-    deps.errOut(`    register manually: ${CLAUDE_MANUAL_ADD}`);
+    deps.errOut(`    register manually: ${manualAdd}`);
     return false;
   }
   deps.out(`${DONE} MCP server registered (user scope)`);
@@ -102,7 +134,7 @@ const asObject = (value: unknown): Record<string, unknown> =>
 /** Add gori to Cursor's mcpServers, preserving any other servers already there. */
 const registerCursor = (deps: SetupDeps): boolean => {
   const path = join(deps.homeDir, ".cursor", "mcp.json");
-  const server = { command: MCP_COMMAND, args: MCP_ARGS };
+  const server = deps.mcpLaunch;
   try {
     const existing = deps.readText(path) ?? "";
     const config: Record<string, unknown> = existing.trim() === "" ? {} : parseJsonObject(existing);
@@ -128,8 +160,8 @@ const registerCursor = (deps: SetupDeps): boolean => {
 /** Append the [mcp_servers.gori] table unless it is already present (no clobber). */
 const registerCodex = (deps: SetupDeps): boolean => {
   const path = join(deps.homeDir, ".codex", "config.toml");
-  const argList = MCP_ARGS.map((arg) => `"${arg}"`).join(", ");
-  const table = `[mcp_servers.gori]\ncommand = "${MCP_COMMAND}"\nargs = [${argList}]\n`;
+  const argList = deps.mcpLaunch.args.map((arg) => `"${arg}"`).join(", ");
+  const table = `[mcp_servers.gori]\ncommand = "${deps.mcpLaunch.command}"\nargs = [${argList}]\n`;
   try {
     const existing = deps.readText(path) ?? "";
     if (/^\[mcp_servers\.gori\]/m.test(existing)) {
@@ -240,5 +272,8 @@ export const createSetupDeps = (io: {
   },
   homeDir: homedir(),
   skillSource: fileURLToPath(new URL("../../skills/gori", import.meta.url)),
+  // Decide the launch command from how this process was started rather than
+  // probing PATH, which npx pollutes with its own temp bin during the run.
+  mcpLaunch: classifyLaunch(fileURLToPath(import.meta.url)),
   ...io,
 });
