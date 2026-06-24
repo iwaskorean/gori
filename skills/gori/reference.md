@@ -11,7 +11,7 @@ A session's binding lives outside the conversation, so a restart or context comp
 
 ## `CWD_IN_USE` on create
 
-If `gori_create` returns `CWD_IN_USE`, this directory already belongs to an open task — you almost certainly meant to:
+If `gori_create` returns `CWD_IN_USE`, this directory already belongs to an open task, so you almost certainly meant to:
 
 - `gori_link` (join the partner's task), or
 - `gori_attach` (reconnect to your own task).

@@ -17,6 +17,7 @@
     "type": "git",
     "url": "git+https://github.com/iwaskorean/gori.git"
   },
+  "author": "iwaskorean",
   "type": "module",
   "bin": {
     "gori": "./dist/cli/index.js"

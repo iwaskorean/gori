@@ -5,11 +5,11 @@ description: A pairing bridge between two AI sessions working on one task across
 
 # gori — pairing bridge
 
-Pair this session with a partner session in a separate repo or directory. One shared task carries a timeline (`log`) and a structured spec (`scope` plus questions and answers). The two sides are symmetric peers — the only difference is who started.
+Pair this session with a partner session in a separate repo or directory. One shared task carries a timeline (`log`) and a structured spec (`scope` plus questions and answers). The two sides are symmetric peers. The only difference is who started.
 
 ## Using gori
 
-Prefer the `gori_*` MCP tools. If they are not available, run the `gori <verb>` CLI — both wrap the same core, so behavior is identical. Never reimplement gori's logic; the tools own it.
+Prefer the `gori_*` MCP tools. If they are not available, run the `gori <verb>` CLI; both wrap the same core, so behavior is identical. Never reimplement gori's logic; the tools own it.
 
 ## Core flow
 
@@ -19,11 +19,11 @@ Prefer the `gori_*` MCP tools. If they are not available, run the `gori <verb>` 
 
 ## Which channel
 
-Three channels, three jobs — don't record the same thing in two:
+Three channels, three jobs; don't record the same thing in two:
 
-- **`gori_log`** — a running log of what happened, in order. Cheap, append-only.
-- **`gori_scope`** — durable decisions and your side's boundary. Re-edit a `### ` sub-section in place as they change; don't restate a decision as a fresh log line.
-- **`gori_ask` / `gori_answer`** — open questions you need the partner to resolve, tracked by stable `#id`.
+- **`gori_log`**: a running log of what happened, in order. Cheap, append-only.
+- **`gori_scope`**: durable decisions and your side's boundary. Re-edit a `### ` sub-section in place as they change; don't restate a decision as a fresh log line.
+- **`gori_ask` / `gori_answer`**: open questions you need the partner to resolve, tracked by stable `#id`.
 
 ## Connecting to a task — pick the right verb
 
