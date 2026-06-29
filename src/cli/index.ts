@@ -42,4 +42,10 @@ const main = async (): Promise<void> => {
   process.exitCode = await runCli(argv, deps);
 };
 
-void main();
+void main().catch((reason: unknown) => {
+  // Expected failures come back as a Result; this guards genuinely unexpected
+  // throws (EACCES/ENOSPC, a corrupt file) so they surface as a clean line
+  // instead of an unhandled-rejection stack trace.
+  console.error(`gori: ${reason instanceof Error ? reason.message : String(reason)}`);
+  process.exitCode = 1;
+});

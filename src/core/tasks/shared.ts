@@ -22,7 +22,9 @@ export const listTaskIds = async (goriHome: string): Promise<string[]> => {
 
 export const readAllMeta = async (goriHome: string): Promise<Meta[]> => {
   const ids = await listTaskIds(goriHome);
-  const metas = await Promise.all(ids.map((id) => readMeta(goriHome, id)));
+  // A single corrupt meta.yml must not poison list/status — skip it, the same
+  // way readMeta already tolerates ENOENT/ENOTDIR junk under tasks/.
+  const metas = await Promise.all(ids.map((id) => readMeta(goriHome, id).catch(() => null)));
   return metas.filter((m): m is Meta => m !== null);
 };
 

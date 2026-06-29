@@ -122,7 +122,10 @@ const resolveAttachSide = (meta: Meta, cwd: string, explicit?: Side): Result<Sid
   }
   const inferred = resolveSideByCwd(meta, cwd);
   if (inferred === "ambiguous") {
-    return err("SIDE_AMBIGUOUS", "both sides share this directory; specify a side");
+    return err(
+      "SIDE_AMBIGUOUS",
+      "both sides share this directory; specify a side (pair-A or pair-B)",
+    );
   }
   if (inferred === null) {
     return err("NOT_REGISTERED", "this directory is not registered with the task");

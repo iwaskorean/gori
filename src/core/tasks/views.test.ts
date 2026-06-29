@@ -1,4 +1,4 @@
-import { rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readMeta, writeMeta } from "../store.js";
@@ -63,6 +63,19 @@ describe("list", () => {
     // ENOTDIR — list must skip it, not crash. The assertion guards the class
     // (any stray file), not this name in particular.
     await writeFile(join(home, "tasks", ".DS_Store"), "\x00\x00finder junk");
+
+    const { tasks } = unwrap(await list(A, T1));
+    expect(tasks.map((t) => t.taskId)).toEqual([taskId]);
+  });
+
+  it("skips a task whose meta.yml is corrupt instead of failing the whole list", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "real" }, T1));
+
+    // A real task directory whose meta.yml is unparseable (truncated or
+    // hand-corrupted). readMeta throws on it (not ENOENT/ENOTDIR), so
+    // readAllMeta must skip it — one bad task can't take down list/status.
+    await mkdir(join(home, "tasks", "corrupt_20260101-000000"), { recursive: true });
+    await writeFile(join(home, "tasks", "corrupt_20260101-000000", "meta.yml"), "not a real meta");
 
     const { tasks } = unwrap(await list(A, T1));
     expect(tasks.map((t) => t.taskId)).toEqual([taskId]);

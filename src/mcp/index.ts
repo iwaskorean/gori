@@ -57,6 +57,10 @@ const INSTRUCTIONS = [
   "or directory, sharing one task with a timeline (log) and a structured spec",
   "(scope / questions / answers).",
   "",
+  "Both sides are separate AI sessions the user runs; gori is only useful once",
+  "a partner joins. If no partner has linked yet, ask the user to start gori in",
+  "the partner session.",
+  "",
   "- Start or resume work with gori_status; when it shows 🆕, call gori_read",
   "  to catch up on the partner's changes.",
   "- One side starts a task with gori_create (keyword + your scope in one",
@@ -149,7 +153,9 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
     {
       description:
         "Reconnect this session to an existing task (after a restart or to " +
-        "switch tasks). Call without task_id to see tasks matching this directory.",
+        "switch tasks). The binding lives on disk, not in this conversation, so " +
+        "a restart loses nothing — attach to resume rather than creating a " +
+        "duplicate. Call without task_id to see tasks matching this directory.",
       inputSchema: {
         task_id: z.string().optional().describe("Task id to attach to"),
         side: z
