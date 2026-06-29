@@ -1,4 +1,14 @@
-import { appendNote, formatDisplay, readSpec, writeMeta, writeSpec } from "../store.js";
+import {
+  appendArchive,
+  appendNote,
+  ARCHIVE_FILENAME,
+  formatDisplay,
+  readNote,
+  readSpec,
+  writeMeta,
+  writeNote,
+  writeSpec,
+} from "../store.js";
 import {
   findReservedHeadings,
   matchScopeSections,
@@ -53,6 +63,57 @@ export const log = async (
     return ok({
       taskId: meta.taskId,
       suggestPromotion: lineCount > NOTE_PROMOTION_LINE_THRESHOLD,
+    });
+  });
+};
+
+// ---------- recap (note channel) ----------
+
+const countLines = (text: string): number => text.trim().split("\n").length;
+
+/**
+ * Replace the running log with a recap, archiving the prior timeline
+ * non-destructively. gori has no LLM, so it never summarizes on its own: the
+ * caller supplies the recap text (typically after log reports suggestPromotion).
+ * The full prior note is moved to note.archive.md — cold storage the reading
+ * view never loads — so the live note (and its token cost) shrinks while
+ * nothing is lost. The archive is written before the note is overwritten, so a
+ * failure can never drop the original first.
+ */
+export const recap = async (
+  ctx: Ctx,
+  input: { summary: string },
+  now: Date = new Date(),
+): Promise<
+  Result<{ taskId: string; archivedLines: number; newLines: number; archivedTo: string }>
+> => {
+  const summary = input.summary.trim();
+  if (!summary) return err("INVALID_INPUT", "recap summary is required");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to recap");
+  await touchSession(ctx.goriHome, ctx.sessionKey);
+
+  const at = formatDisplay(now);
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    const rejection = rejectIfClosed(meta);
+    if (rejection) return rejection;
+    const current = await readNote(ctx.goriHome, binding.taskId);
+    if (!current?.trim()) {
+      return err("NOTHING_TO_RECAP", "the note timeline is empty; nothing to recap");
+    }
+    await appendArchive(
+      ctx.goriHome,
+      binding.taskId,
+      `## archived ${at} [${binding.side}]\n\n${current.trimEnd()}\n`,
+    );
+    const newNote = `## recap ${at} [${binding.side}]\n\n${summary}\n`;
+    await writeNote(ctx.goriHome, binding.taskId, newNote);
+    await writeMeta(ctx.goriHome, markModified(meta, binding.side, at));
+    return ok({
+      taskId: meta.taskId,
+      archivedLines: countLines(current),
+      newLines: countLines(newNote),
+      archivedTo: ARCHIVE_FILENAME,
     });
   });
 };

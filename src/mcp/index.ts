@@ -25,6 +25,7 @@ import {
   list,
   log,
   read,
+  recap,
   reopen,
   resolveGoriHome,
   scope,
@@ -45,6 +46,7 @@ import {
   formatList,
   formatLog,
   formatRead,
+  formatRecap,
   formatReopen,
   formatScope,
   formatStatus,
@@ -59,7 +61,9 @@ const INSTRUCTIONS = [
   "  to catch up on the partner's changes.",
   "- One side starts a task with gori_create (keyword + your scope in one",
   "  call); the partner joins it with gori_link.",
-  "- Log progress as it happens with gori_log.",
+  "- Log progress as it happens with gori_log. When it reports the log is",
+  "  getting long, write a summary and replace it with gori_recap — the full",
+  "  timeline is archived, not lost.",
   "- Ask questions about the partner's territory with gori_ask; answer the",
   "  questions waiting on you with gori_answer.",
   "- Close the task with gori_close when both sides agree it is done.",
@@ -236,6 +240,22 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
       },
     },
     async (args) => emit(await log(ctx, args), formatLog),
+  );
+
+  server.registerTool(
+    "gori_recap",
+    {
+      description:
+        "Replace a long note timeline with a short recap you write. Use it when " +
+        "gori_log reports the note is getting long: gori_read the note, summarize " +
+        "what still matters, then call gori_recap. gori has no LLM — you write the " +
+        "summary. The full prior timeline is archived to note.archive.md (kept out " +
+        "of the read view), so nothing is lost.",
+      inputSchema: {
+        summary: z.string().describe("The recap that replaces the current note timeline"),
+      },
+    },
+    async (args) => emit(await recap(ctx, args), formatRecap),
   );
 
   server.registerTool(

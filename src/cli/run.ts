@@ -19,6 +19,7 @@ import {
   list,
   log,
   read,
+  recap,
   reopen,
   scope,
   status,
@@ -39,6 +40,7 @@ import {
   formatList,
   formatLog,
   formatRead,
+  formatRecap,
   formatReopen,
   formatScope,
   formatStatus,
@@ -320,6 +322,8 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       return runReopen();
     case "log":
       return emit(await log(deps.ctx, { message: positionals[0] ?? "" }), formatLog);
+    case "recap":
+      return emit(await recap(deps.ctx, { summary: positionals[0] ?? "" }), formatRecap);
     case "scope":
       return runScope();
     case "ask":

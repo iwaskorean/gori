@@ -47,7 +47,7 @@ afterEach(async () => {
 });
 
 describe("tool surface", () => {
-  it("exposes the 13 verbs (help is covered by the tool list itself)", async () => {
+  it("exposes the 14 verbs (help is covered by the tool list itself)", async () => {
     const a = await connectSession(home, "/work/api", "mcp-a");
     const { tools } = await a.client.listTools();
     const names = tools.map((t) => t.name).sort();
@@ -63,6 +63,7 @@ describe("tool surface", () => {
         "gori_list",
         "gori_log",
         "gori_read",
+        "gori_recap",
         "gori_reopen",
         "gori_scope",
         "gori_status",
@@ -167,6 +168,21 @@ describe("remaining tool wiring", () => {
     const reopened = await restarted.call("gori_reopen", { task_id: taskId });
     expect(reopened.isError).toBe(false);
     expect(reopened.text).toContain("reopened");
+  });
+
+  it("recaps the note timeline, archiving the prior log out of the read view", async () => {
+    const a = await connectSession(home, "/work/api", "mcp-a");
+    await a.call("gori_create", { keyword: "x" });
+    await a.call("gori_log", { message: "long-winded detail" });
+
+    const recapped = await a.call("gori_recap", { summary: "settled the approach" });
+    expect(recapped.isError).toBe(false);
+    expect(recapped.text).toContain("recapped");
+    expect(recapped.text).toContain("note.archive.md");
+
+    const view = await a.call("gori_read", { which: "log" });
+    expect(view.text).toContain("settled the approach");
+    expect(view.text).not.toContain("long-winded detail"); // archived, not loaded
   });
 
   it("edits one scope sub-section through gori_scope section", async () => {

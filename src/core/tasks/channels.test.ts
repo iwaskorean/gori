@@ -1,8 +1,8 @@
 import { readFile, rm, stat, utimes } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { notePath, readMeta, readSpec } from "../store.js";
+import { archivePath, notePath, readMeta, readSpec } from "../store.js";
 import { sessionFilePath } from "../session.js";
-import { answer, ask, close, create, link, log, scope } from "./index.js";
+import { answer, ask, close, create, link, log, read, recap, scope } from "./index.js";
 import type { Ctx } from "../types.js";
 import { errorOf, freshTaskEnv, unwrap, T1, T2, T3 } from "./test-helpers.js";
 
@@ -89,6 +89,94 @@ describe("log (note channel)", () => {
 
     const long = Array.from({ length: 31 }, (_, i) => `line ${i}`).join("\n");
     expect(unwrap(await log(A, { message: long }, T3)).suggestPromotion).toBe(true);
+  });
+});
+
+describe("recap (note channel)", () => {
+  const readNote = (taskId: string): Promise<string> => readFile(notePath(home, taskId), "utf8");
+  const readArchive = (taskId: string): Promise<string> =>
+    readFile(archivePath(home, taskId), "utf8");
+
+  it("archives the prior timeline and installs the summary as the new note", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "long-winded detail" }, T2);
+    const result = unwrap(await recap(A, { summary: "settled the approach" }, T3));
+    expect(result.taskId).toBe(taskId);
+    expect(result.archivedTo).toBe("note.archive.md");
+    expect(await readNote(taskId)).toBe(
+      "## recap 2026-01-01 10:01:00 [pair-A]\n\nsettled the approach\n",
+    );
+    expect(await readNote(taskId)).not.toContain("long-winded detail");
+  });
+
+  it("preserves the original timeline in the archive (recoverable)", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "long-winded detail" }, T2);
+    await recap(A, { summary: "summary" }, T3);
+    const archive = await readArchive(taskId);
+    expect(archive).toContain("long-winded detail");
+    expect(archive).toContain("## archived 2026-01-01 10:01:00 [pair-A]");
+  });
+
+  it("keeps the archive out of the read view", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "secret detail" }, T2);
+    await recap(A, { summary: "tidy summary" }, T3);
+    const view = unwrap(await read(A, { which: "log" }));
+    expect(view.note).toContain("tidy summary");
+    expect(view.note).not.toContain("secret detail");
+  });
+
+  it("accumulates successive recaps in the archive", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "round one" }, T2);
+    await recap(A, { summary: "recap one" }, T3);
+    await log(A, { message: "round two" }, T3);
+    await recap(A, { summary: "recap two" }, T3);
+    const archive = await readArchive(taskId);
+    expect(archive).toContain("round one");
+    expect(archive).toContain("recap one"); // the first recap is itself archived by the second
+    expect(archive).toContain("round two");
+    expect(archive.match(/^## archived /gm)).toHaveLength(2);
+  });
+
+  it("reports more lines archived than the recap leaves behind", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "a\nb\nc\nd\ne" }, T2);
+    const result = unwrap(await recap(A, { summary: "tiny" }, T3));
+    expect(result.archivedLines).toBeGreaterThan(result.newLines);
+  });
+
+  it("updates meta last-modified to the recapping side", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    await link(B, { taskId }, T2); // last modified by B
+    await log(A, { message: "note" }, T3);
+    await recap(A, { summary: "s" }, T3); // A is last
+    expect((await readMeta(home, taskId))?.lastModifiedBy).toBe("pair-A");
+  });
+
+  it("rejects a recap when the note timeline is empty", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    expect(errorOf(await recap(A, { summary: "nothing logged yet" }, T2)).code).toBe(
+      "NOTHING_TO_RECAP",
+    );
+  });
+
+  it("rejects a blank summary", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "x" }, T2);
+    expect(errorOf(await recap(A, { summary: "   " }, T3)).code).toBe("INVALID_INPUT");
+  });
+
+  it("rejects recapping with no active task", async () => {
+    expect(errorOf(await recap(C, { summary: "x" }, T1)).code).toBe("NO_ACTIVE_TASK");
+  });
+
+  it("rejects recapping on a closed task", async () => {
+    unwrap(await create(A, { keyword: "x" }, T1));
+    await log(A, { message: "x" }, T2);
+    unwrap(await close(A, T3));
+    expect(errorOf(await recap(A, { summary: "s" }, T3)).code).toBe("ALREADY_CLOSED");
   });
 });
 

@@ -46,6 +46,7 @@ export type GoriErrorCode =
   | "SCOPE_EXISTS"
   | "SECTION_NOT_FOUND"
   | "SECTION_AMBIGUOUS"
+  | "NOTHING_TO_RECAP"
   | "CWD_IN_USE";
 
 /** Structured error; the CLI and MCP wrappers decide how to present it. */

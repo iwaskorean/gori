@@ -194,6 +194,18 @@ export const formatLog = (data: { taskId: string; suggestPromotion: boolean }): 
   return lines.join("\n");
 };
 
+export const formatRecap = (data: {
+  taskId: string;
+  archivedLines: number;
+  newLines: number;
+  archivedTo: string;
+}): string =>
+  [
+    `${DONE} recapped`,
+    detail(`${data.archivedLines} lines archived to ${data.archivedTo} (recoverable)`),
+    detail(`note now ${data.newLines} lines`),
+  ].join("\n");
+
 export const formatScope = (_data: { taskId: string }): string => `${DONE} scope updated`;
 
 export const formatAsk = (data: { id: number }): string =>

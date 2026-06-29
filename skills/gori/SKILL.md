@@ -21,7 +21,7 @@ Prefer the `gori_*` MCP tools. If they are not available, run the `gori <verb>` 
 
 Three channels, three jobs; don't record the same thing in two:
 
-- **`gori_log`**: a running log of what happened, in order. Cheap, append-only.
+- **`gori_log`**: a running log of what happened, in order. Cheap, append-only. When `gori_log` reports the log is getting long, `gori_read` it, write a short summary of what still matters, and `gori_recap` to replace the timeline — gori archives the full log to `note.archive.md` (recoverable, but kept out of the read view), so nothing is lost while the live note stays small.
 - **`gori_scope`**: durable decisions and your side's boundary. Re-edit a `### ` sub-section in place as they change; don't restate a decision as a fresh log line.
 - **`gori_ask` / `gori_answer`**: open questions you need the partner to resolve, tracked by stable `#id`.
 

@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { taskDir } from "./env.js";
 import {
+  appendArchive,
   appendNote,
+  archivePath,
   buildTaskId,
   ensureUniqueTaskId,
   formatStamp,
@@ -15,6 +17,7 @@ import {
   readMeta,
   slugify,
   writeMeta,
+  writeNote,
 } from "./store.js";
 import type { Meta } from "./types.js";
 
@@ -159,5 +162,31 @@ describe("appendNote", () => {
     await appendNote(home, id, "## a\n\nfirst\n");
     expect(await appendNote(home, id, "## b\n\nsecond\n")).toBe(7);
     expect(await readFile(notePath(home, id), "utf8")).toBe("## a\n\nfirst\n\n## b\n\nsecond\n");
+  });
+});
+
+describe("writeNote / appendArchive", () => {
+  let home: string;
+  const id = "t_20260101-000000";
+  beforeEach(async () => {
+    home = await mkdtemp(join(tmpdir(), "gori-archive-"));
+    await mkdir(taskDir(home, id), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(home, { recursive: true, force: true });
+  });
+
+  it("writeNote replaces the note wholesale", async () => {
+    await appendNote(home, id, "## a\n\nfirst\n");
+    await writeNote(home, id, "## recap\n\ntidy\n");
+    expect(await readFile(notePath(home, id), "utf8")).toBe("## recap\n\ntidy\n");
+  });
+
+  it("appendArchive creates the file then separates blocks with a blank line", async () => {
+    await appendArchive(home, id, "## archived 1\n\nold one\n");
+    await appendArchive(home, id, "## archived 2\n\nold two\n");
+    expect(await readFile(archivePath(home, id), "utf8")).toBe(
+      "## archived 1\n\nold one\n\n## archived 2\n\nold two\n",
+    );
   });
 });

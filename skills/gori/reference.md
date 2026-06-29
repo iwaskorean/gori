@@ -22,6 +22,12 @@ Use `force` only to deliberately start a second task in the same directory.
 
 The `log` is a running log for points in the flow; durable decisions live in the spec. When `gori_log` reports the timeline is getting long (around 30 lines), move durable decisions into `gori_scope`, or raise open questions with `gori_ask`.
 
+## recap — condensing a long log
+
+Promotion moves individual items out of the log; `gori_recap` condenses the log itself. When the timeline has grown long and the back-and-forth is mostly settled, `gori_read` it, write a short summary of what still matters, and call `gori_recap "<summary>"`. The summary becomes the new note; the full prior timeline is appended to `note.archive.md` in the task directory.
+
+gori has no LLM, so it never summarizes on its own — you write the recap. The archive is non-destructive cold storage: the reading view never loads it (so it costs no tokens), and it is never auto-deleted. To recover the full history, read `note.archive.md` in the task's directory (`$GORI_HOME/tasks/<task-id>/note.archive.md`, default `~/.gori`). `gori_recap` is rejected on a closed task and when the note is empty (`NOTHING_TO_RECAP`).
+
 ## Natural-language triggers (non-Claude-Code agents)
 
 Outside Claude Code, slash invocation may not exist. These phrasings map to the flow:

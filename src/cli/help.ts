@@ -14,6 +14,7 @@ export const VERBS = [
   "close",
   "reopen",
   "log",
+  "recap",
   "scope",
   "ask",
   "answer",
@@ -33,7 +34,7 @@ type VerbHelp = {
 const CATEGORIES: ReadonlyArray<{ title: string; verbs: readonly Verb[] }> = [
   { title: "session / task", verbs: ["create", "link", "attach", "detach", "list", "status"] },
   { title: "lifecycle", verbs: ["close", "reopen"] },
-  { title: "note channel", verbs: ["log"] },
+  { title: "note channel", verbs: ["log", "recap"] },
   { title: "spec channel", verbs: ["scope", "ask", "answer"] },
   { title: "reading / help", verbs: ["read", "help"] },
 ];
@@ -86,6 +87,13 @@ const HELP: Record<Verb, VerbHelp> = {
     signature: 'gori log "<message>"',
     summary: "append a timestamped entry to the task's note timeline",
     example: 'gori log "webhook endpoint deployed to staging"',
+  },
+  recap: {
+    signature: 'gori recap "<summary>"',
+    summary:
+      "replace a long note timeline with a summary you write; the full log is " +
+      "archived to note.archive.md, not deleted",
+    example: 'gori recap "settled: webhook on /hooks, retries exponential"',
   },
   scope: {
     signature: 'gori scope "<text>" [--append|--replace] [--section "<heading>"]',

@@ -197,6 +197,39 @@ export const readNote = async (goriHome: string, taskId: string): Promise<string
   }
 };
 
+/** Replace a task's note.md wholesale — used by recap to install the summary. */
+export const writeNote = (goriHome: string, taskId: string, content: string): Promise<void> =>
+  writeFileAtomic(notePath(goriHome, taskId), content);
+
+// ---------- note archive (recap) ----------
+
+export const ARCHIVE_FILENAME = "note.archive.md";
+
+export const archivePath = (goriHome: string, taskId: string): string =>
+  join(taskDir(goriHome, taskId), ARCHIVE_FILENAME);
+
+/**
+ * Append a block to a task's note.archive.md (created if absent), separating
+ * blocks with a blank line. recap moves the live note here before replacing it,
+ * so the full timeline is always recoverable. Append-only cold storage: the
+ * reading view never loads it, so it costs no context tokens. Lock-free —
+ * recap holds withTaskLock around the archive+note pair to keep them atomic.
+ */
+export const appendArchive = async (
+  goriHome: string,
+  taskId: string,
+  block: string,
+): Promise<void> => {
+  const path = archivePath(goriHome, taskId);
+  let current = "";
+  try {
+    current = await readFile(path, "utf8");
+  } catch (error) {
+    if (!(isErrnoException(error) && error.code === "ENOENT")) throw error;
+  }
+  await writeFileAtomic(path, current ? `${current}\n${block}` : block);
+};
+
 // ---------- spec read/write ----------
 
 export const specPath = (goriHome: string, taskId: string): string =>
