@@ -70,7 +70,9 @@ const HELP: Record<Verb, VerbHelp> = {
   },
   status: {
     signature: "gori status",
-    summary: "one-line summary of your active task, with a turn alert",
+    summary:
+      "one-line summary of your active task, with a turn alert; when " +
+      "unattached, lists tasks matching this directory",
     example: "gori status",
   },
   close: {

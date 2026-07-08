@@ -313,8 +313,8 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
     case "list":
       return emit(await list(deps.ctx), ({ tasks }) => formatList(tasks));
     case "status":
-      return emit(await status(deps.ctx), ({ active }) =>
-        formatStatus(active, deps.ctx.sessionKey),
+      return emit(await status(deps.ctx), ({ active, unattachedMatches }) =>
+        formatStatus(active, deps.ctx.sessionKey, unattachedMatches),
       );
     case "close":
       return emit(await close(deps.ctx), formatClose);

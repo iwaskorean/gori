@@ -177,6 +177,30 @@ describe("formatStatus", () => {
     expect(text).toContain("agent-f50cf907");
     expect(formatStatus(activeOf(), "tmux-3")).toContain("tmux-3");
   });
+
+  it("surfaces a single directory match instead of the generic create hint", () => {
+    const text = formatStatus(null, "agent-1", [
+      { taskId: "tags_1", keyword: "tags", side: "pair-A", lastModifiedAt: "2026-01-01 10:00:00" },
+    ]);
+    expect(text).toContain("attached to this session");
+    expect(text).toContain("1 task matches this directory");
+    expect(text).toContain("tags");
+    expect(text).toContain("pair-A");
+    expect(text).toContain("tags_1");
+    expect(text).toContain("attach to reconnect");
+    expect(text).not.toContain("create a task");
+  });
+
+  it("pluralizes and lists multiple matches, spelling out an ambiguous side", () => {
+    const text = formatStatus(null, "agent-1", [
+      { taskId: "a_1", keyword: "alpha", side: "pair-A", lastModifiedAt: "t2" },
+      { taskId: "b_2", keyword: "beta", side: "ambiguous", lastModifiedAt: "t1" },
+    ]);
+    expect(text).toContain("2 tasks match this directory");
+    expect(text).toContain("alpha");
+    expect(text).toContain("beta");
+    expect(text).toContain("side ambiguous");
+  });
 });
 
 describe("formatClose", () => {

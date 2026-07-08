@@ -170,6 +170,22 @@ describe("remaining tool wiring", () => {
     expect(reopened.text).toContain("reopened");
   });
 
+  it("surfaces directory-matching tasks on status when the session is unattached", async () => {
+    const a = await connectSession(home, "/work/api", "mcp-a");
+    await a.call("gori_create", { keyword: "tag-order" });
+
+    // A fresh server process (e.g. after a conversation reset) opens in the same
+    // directory with a new session key and was never attached — status must
+    // surface the on-disk task instead of reading as "no task anywhere".
+    const restarted = await connectSession(home, "/work/api", "mcp-a2");
+    const status = await restarted.call("gori_status");
+    expect(status.isError).toBe(false);
+    expect(status.text).toContain("no active task attached to this session");
+    expect(status.text).toContain("1 task matches this directory");
+    expect(status.text).toContain("tag-order");
+    expect(status.text).toContain("pair-A");
+  });
+
   it("recaps the note timeline, archiving the prior log out of the read view", async () => {
     const a = await connectSession(home, "/work/api", "mcp-a");
     await a.call("gori_create", { keyword: "x" });

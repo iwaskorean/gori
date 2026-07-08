@@ -207,10 +207,15 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
       description:
         "Show the active task: your side, pairing state, and open question " +
         "counts. Call this when starting or resuming work; 🆕 means the " +
-        "partner changed something — follow up with gori_read.",
+        "partner changed something — follow up with gori_read. If this session " +
+        "isn't attached, it lists in-progress tasks matching this directory so " +
+        "you reconnect with gori_attach instead of creating a duplicate.",
       inputSchema: {},
     },
-    async () => emit(await status(ctx), ({ active }) => formatStatus(active, ctx.sessionKey)),
+    async () =>
+      emit(await status(ctx), ({ active, unattachedMatches }) =>
+        formatStatus(active, ctx.sessionKey, unattachedMatches),
+      ),
   );
 
   server.registerTool(

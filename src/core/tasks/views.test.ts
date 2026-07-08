@@ -5,7 +5,7 @@ import { readMeta, writeMeta } from "../store.js";
 import { readSession, sessionFilePath, writeSession } from "../session.js";
 import { ask, create, link, list, log, read, scope, status } from "./index.js";
 import type { Ctx, Meta } from "../types.js";
-import { errorOf, freshTaskEnv, unwrap, T1, T2, T3 } from "./test-helpers.js";
+import { ctxOf, errorOf, freshTaskEnv, unwrap, T1, T2, T3 } from "./test-helpers.js";
 
 let home: string;
 let A: Ctx;
@@ -108,6 +108,53 @@ describe("status", () => {
 
     const active = unwrap(await status(A, T3)).active;
     expect(active?.openQuestionCounts).toEqual({ pairA: 0, pairB: 1 });
+  });
+
+  it("returns no directory matches while this session is attached", async () => {
+    unwrap(await create(A, { keyword: "bound" }, T1));
+    const { active, unattachedMatches } = unwrap(await status(A, T2));
+    expect(active).not.toBeNull();
+    expect(unattachedMatches).toEqual([]);
+  });
+
+  it("surfaces a directory-matching task when this session is unattached", async () => {
+    // A starts a task in /work/api; a new session (e.g. after /clear) then opens
+    // in the same directory with a fresh key and was never attached.
+    const { taskId } = unwrap(await create(A, { keyword: "tags" }, T1));
+    const reopened = ctxOf(home, "/work/api", "keyA2");
+
+    const { active, unattachedMatches } = unwrap(await status(reopened, T2));
+    expect(active).toBeNull();
+    expect(unattachedMatches).toEqual([
+      expect.objectContaining({ taskId, keyword: "tags", side: "pair-A" }),
+    ]);
+  });
+
+  it("lists every in-progress task matching the directory, most recent first", async () => {
+    unwrap(await create(A, { keyword: "one" }, T1));
+    unwrap(await create(A, { keyword: "two", force: true }, T2));
+    const reopened = ctxOf(home, "/work/api", "keyA2");
+
+    const { unattachedMatches } = unwrap(await status(reopened, T3));
+    expect(unattachedMatches.map((m) => m.keyword)).toEqual(["two", "one"]);
+  });
+
+  it("reports no matches when nothing is bound to this directory", async () => {
+    unwrap(await create(A, { keyword: "elsewhere" }, T1)); // lives in /work/api
+    const { active, unattachedMatches } = unwrap(await status(C, T2)); // C is /work/none
+    expect(active).toBeNull();
+    expect(unattachedMatches).toEqual([]);
+  });
+
+  it("marks the side ambiguous when the directory matches both sides", async () => {
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    const sameDirB = ctxOf(home, "/work/api", "keyB2"); // B pairs in from A's directory
+    await link(sameDirB, { taskId }, T2);
+    const reopened = ctxOf(home, "/work/api", "keyFresh");
+
+    const { unattachedMatches } = unwrap(await status(reopened, T3));
+    expect(unattachedMatches).toHaveLength(1);
+    expect(unattachedMatches[0]?.side).toBe("ambiguous");
   });
 });
 

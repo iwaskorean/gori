@@ -136,17 +136,40 @@ const summaryLine = (a: ActiveStatus): string =>
   `${ACTIVE} ${a.keyword}   ${a.status} · you are ${a.side} · ` +
   (a.paired ? "paired" : "waiting for the partner session to link");
 
-export const formatStatus = (active: ActiveStatus | null, sessionKey: string): string => {
+/** Rows for the directory-matching tasks surfaced when this session is unattached. */
+const matchRows = (matches: AttachCandidate[]): string[] =>
+  matches.flatMap((c) => {
+    const side = c.side === "ambiguous" ? "side ambiguous (both match)" : c.side;
+    return [
+      subItem(`${c.keyword}   ${side} · last modified ${c.lastModifiedAt}`),
+      subItem(labeled("id", c.taskId)),
+    ];
+  });
+
+export const formatStatus = (
+  active: ActiveStatus | null,
+  sessionKey: string,
+  unattachedMatches: AttachCandidate[] = [],
+): string => {
   // The key matches this session's pointer filename in sessions/, so pairing
   // problems are diagnosable from CLI output alone (two sessions sharing one
   // key was invisible without inspecting the data directory).
   const sessionLine = detail(labeled("session", sessionKey));
   if (!active) {
-    return [
-      "no active task",
-      detail(`${NEXT} attach to reconnect, or create a task to start one`),
-      sessionLine,
-    ].join("\n");
+    // "attached to this session" names the real state — a task can exist on disk
+    // while this session simply isn't bound to it. When one does match this
+    // directory, surface it so the reader attaches instead of creating a duplicate.
+    const lines = ["no active task attached to this session"];
+    if (unattachedMatches.length === 0) {
+      lines.push(detail(`${NEXT} attach to reconnect, or create a task to start one`));
+    } else {
+      const noun = unattachedMatches.length === 1 ? "task matches" : "tasks match";
+      lines.push(detail(`${unattachedMatches.length} ${noun} this directory:`));
+      lines.push(...matchRows(unattachedMatches));
+      lines.push(detail(`${NEXT} attach to reconnect rather than creating a duplicate`));
+    }
+    lines.push(sessionLine);
+    return lines.join("\n");
   }
   const lines = [summaryLine(active)];
   if (active.partnerModified) {

@@ -4,6 +4,8 @@ import type { Question, SpecDoc } from "../spec.js";
 import { readSession, touchSession } from "../session.js";
 import { err, ok } from "../types.js";
 import type { Ctx, Result, Side, TaskStatus } from "../types.js";
+import { attachCandidates } from "./pairing.js";
+import type { AttachCandidate } from "./pairing.js";
 import { readAllMeta, runGc } from "./shared.js";
 
 // ---------- list ----------
@@ -70,13 +72,19 @@ export type ActiveStatus = {
 export const status = async (
   ctx: Ctx,
   now: Date = new Date(),
-): Promise<Result<{ active: ActiveStatus | null }>> => {
+): Promise<Result<{ active: ActiveStatus | null; unattachedMatches: AttachCandidate[] }>> => {
   await touchSession(ctx.goriHome, ctx.sessionKey);
   await runGc(ctx.goriHome, now);
   const binding = await readSession(ctx.goriHome, ctx.sessionKey);
-  if (!binding) return ok({ active: null });
-  const meta = await readMeta(ctx.goriHome, binding.taskId);
-  if (!meta) return ok({ active: null });
+  const meta = binding ? await readMeta(ctx.goriHome, binding.taskId) : null;
+  if (!binding || !meta) {
+    // Unattached (or the bound task vanished): surface the in-progress tasks whose
+    // directory matches this cwd, so the session reconnects rather than mistaking
+    // "not attached" for "no task" and creating a duplicate. attachCandidates is a
+    // read that does not error in practice; degrade to no matches if it ever does.
+    const found = await attachCandidates(ctx);
+    return ok({ active: null, unattachedMatches: found.ok ? found.data.candidates : [] });
+  }
   const doc = await readSpec(ctx.goriHome, binding.taskId);
   return ok({
     active: {
@@ -88,6 +96,7 @@ export const status = async (
       partnerModified: meta.lastModifiedBy !== binding.side,
       openQuestionCounts: countOpenQuestions(doc),
     },
+    unattachedMatches: [],
   });
 };
 
