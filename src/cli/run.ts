@@ -11,6 +11,7 @@ import {
   ask,
   attach,
   attachCandidates,
+  block,
   close,
   create,
   detach,
@@ -23,6 +24,7 @@ import {
   reopen,
   scope,
   status,
+  unblock,
   VERSION,
 } from "../core/index.js";
 import type { Ctx, GoriError, Result, Side } from "../core/index.js";
@@ -31,6 +33,7 @@ import {
   formatAsk,
   formatAttach,
   formatAttachCandidates,
+  formatBlock,
   formatClose,
   formatCreate,
   formatDetach,
@@ -44,6 +47,7 @@ import {
   formatReopen,
   formatScope,
   formatStatus,
+  formatUnblock,
 } from "./format.js";
 import { renderHelpOverview, renderVerbHelp, suggestVerbs, VERBS } from "./help.js";
 import type { Verb } from "./help.js";
@@ -320,6 +324,10 @@ export const runCli = async (argv: string[], deps: CliDeps): Promise<number> => 
       return emit(await close(deps.ctx), formatClose);
     case "reopen":
       return runReopen();
+    case "block":
+      return emit(await block(deps.ctx, { reason: positionals[0] ?? "" }), formatBlock);
+    case "unblock":
+      return emit(await unblock(deps.ctx), formatUnblock);
     case "log":
       return emit(await log(deps.ctx, { message: positionals[0] ?? "" }), formatLog);
     case "recap":

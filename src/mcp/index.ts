@@ -17,6 +17,7 @@ import {
   ask,
   attach,
   attachCandidates,
+  block,
   close,
   create,
   detach,
@@ -30,6 +31,7 @@ import {
   resolveGoriHome,
   scope,
   status,
+  unblock,
   VERSION,
 } from "../core/index.js";
 import type { Ctx, GoriError, Result } from "../core/index.js";
@@ -38,6 +40,7 @@ import {
   formatAsk,
   formatAttach,
   formatAttachCandidates,
+  formatBlock,
   formatClose,
   formatCreate,
   formatDetach,
@@ -50,6 +53,7 @@ import {
   formatReopen,
   formatScope,
   formatStatus,
+  formatUnblock,
 } from "../cli/format.js";
 
 const INSTRUCTIONS = [
@@ -71,6 +75,8 @@ const INSTRUCTIONS = [
   "- Ask questions about the partner's territory with gori_ask; answer the",
   "  questions waiting on you with gori_answer.",
   "- Close the task with gori_close when both sides agree it is done.",
+  "- If you hit an impasse that needs a decision neither session can make,",
+  "  gori_block with the reason to flag it for the user (gori_unblock to resume).",
   "",
   "Which channel: gori_log is a running log of what happened, in order;",
   "gori_scope holds durable decisions and your side's boundary, re-edited in",
@@ -237,6 +243,30 @@ export const buildMcpServer = (ctx: Ctx): McpServer => {
     },
     async ({ task_id }) =>
       emit(await reopen(ctx, task_id !== undefined ? { taskId: task_id } : {}), formatReopen),
+  );
+
+  server.registerTool(
+    "gori_block",
+    {
+      description:
+        "Flag the active task as blocked on a decision neither session can make " +
+        "(an impasse to escalate to the user). Records the reason, which shows in " +
+        "gori_status until gori_unblock. The task stays editable — keep working " +
+        "toward the resolution.",
+      inputSchema: {
+        reason: z.string().describe("Why the task is blocked and what decision it needs"),
+      },
+    },
+    async (args) => emit(await block(ctx, args), formatBlock),
+  );
+
+  server.registerTool(
+    "gori_unblock",
+    {
+      description: "Clear a block once the decision has been made, resuming the task.",
+      inputSchema: {},
+    },
+    async () => emit(await unblock(ctx), formatUnblock),
   );
 
   server.registerTool(

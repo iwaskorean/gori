@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatAnswer,
   formatAttachCandidates,
+  formatBlock,
   formatClose,
   formatCreate,
   formatError,
@@ -11,6 +12,7 @@ import {
   formatRead,
   formatReopen,
   formatStatus,
+  formatUnblock,
 } from "./format.js";
 import type { ActiveStatus, ReadView, TaskSummary } from "../core/index.js";
 
@@ -18,6 +20,7 @@ const activeOf = (overrides: Partial<ActiveStatus> = {}): ActiveStatus => ({
   taskId: "shared_20260101-100000",
   keyword: "shared",
   status: "in-progress",
+  blockedReason: null,
   side: "pair-A",
   paired: true,
   partnerModified: false,
@@ -116,6 +119,7 @@ describe("formatList", () => {
     taskId: "x_1",
     keyword: "x",
     status: "in-progress",
+    blockedReason: null,
     paired: false,
     lastModifiedBy: "pair-A",
     lastModifiedAt: "2026-01-01 10:00:00",
@@ -145,6 +149,14 @@ describe("formatList", () => {
     const betaLine = text.split("\n").find((line) => line.includes("2. beta")) ?? "";
     expect(betaLine).not.toContain("(active)");
     expect(betaLine).not.toContain("●");
+  });
+
+  it("shows the reason under a blocked row", () => {
+    const text = formatList([
+      summaryOf({ status: "blocked", blockedReason: "needs a schema call" }),
+    ]);
+    expect(text).toContain("blocked");
+    expect(text).toContain("needs a schema call");
   });
 });
 
@@ -201,6 +213,15 @@ describe("formatStatus", () => {
     expect(text).toContain("beta");
     expect(text).toContain("side ambiguous");
   });
+
+  it("surfaces the blocked reason on a blocked task", () => {
+    const text = formatStatus(
+      activeOf({ status: "blocked", blockedReason: "needs a schema call" }),
+      "agent-1",
+    );
+    expect(text).toContain("blocked");
+    expect(text).toContain("needs a schema call");
+  });
 });
 
 describe("formatClose", () => {
@@ -215,6 +236,21 @@ describe("formatReopen", () => {
   it("tells an unbound session to attach, and stays quiet when bound", () => {
     expect(formatReopen({ taskId: "x_1", keyword: "x", reattach: true })).toContain("attach");
     expect(formatReopen({ taskId: "x_1", keyword: "x", reattach: false })).not.toContain("attach");
+  });
+});
+
+describe("formatBlock / formatUnblock", () => {
+  it("formatBlock names the keyword and points to unblock", () => {
+    const text = formatBlock({ taskId: "x_1", keyword: "billing" });
+    expect(text).toContain("blocked billing");
+    expect(text).toContain("unblock");
+    expect(text).toContain("x_1");
+  });
+
+  it("formatUnblock confirms the resume", () => {
+    const text = formatUnblock({ taskId: "x_1", keyword: "billing" });
+    expect(text).toContain("unblocked billing");
+    expect(text).toContain("x_1");
   });
 });
 

@@ -102,6 +102,7 @@ type MetaYaml = {
   "pair-A": { dir: string | null; "joined-at": string | null };
   "pair-B": { dir: string | null; "joined-at": string | null };
   status: TaskStatus;
+  "blocked-reason"?: string | null;
   "last-modified-by": Side;
   "last-modified-at": string;
 };
@@ -114,6 +115,7 @@ export const metaToYaml = (m: Meta): string =>
     "pair-A": { dir: m.pairA.dir, "joined-at": m.pairA.joinedAt },
     "pair-B": { dir: m.pairB.dir, "joined-at": m.pairB.joinedAt },
     status: m.status,
+    "blocked-reason": m.blockedReason,
     "last-modified-by": m.lastModifiedBy,
     "last-modified-at": m.lastModifiedAt,
   } satisfies MetaYaml);
@@ -127,6 +129,8 @@ export const metaFromYaml = (text: string): Meta => {
     pairA: { dir: y["pair-A"].dir, joinedAt: y["pair-A"]["joined-at"] },
     pairB: { dir: y["pair-B"].dir, joinedAt: y["pair-B"]["joined-at"] },
     status: y.status,
+    // Optional on disk so a meta.yml written before this field round-trips to null.
+    blockedReason: y["blocked-reason"] ?? null,
     lastModifiedBy: y["last-modified-by"],
     lastModifiedAt: y["last-modified-at"],
   };

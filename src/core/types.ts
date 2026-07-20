@@ -6,7 +6,10 @@
 
 export type Side = "pair-A" | "pair-B";
 
-export type TaskStatus = "in-progress" | "closed";
+// blocked sits between the two: the task is not done, but it cannot proceed
+// without a decision neither side can make. It is "active but flagged" -- still
+// mutable, attachable, and not GC'd -- so a human can pick it up and resolve it.
+export type TaskStatus = "in-progress" | "blocked" | "closed";
 
 /** One side's persisted info. Before pairing, pair-B's fields are null. */
 export type SideMeta = {
@@ -22,6 +25,8 @@ export type Meta = {
   pairA: SideMeta;
   pairB: SideMeta;
   status: TaskStatus;
+  /** Why the task is blocked. Invariant: non-null iff status is "blocked". */
+  blockedReason: string | null;
   lastModifiedBy: Side;
   lastModifiedAt: string;
 };
@@ -43,6 +48,8 @@ export type GoriErrorCode =
   | "NOT_REGISTERED"
   | "ALREADY_CLOSED"
   | "ALREADY_OPEN"
+  | "ALREADY_BLOCKED"
+  | "NOT_BLOCKED"
   | "SCOPE_EXISTS"
   | "SECTION_NOT_FOUND"
   | "SECTION_AMBIGUOUS"

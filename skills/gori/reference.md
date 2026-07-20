@@ -28,6 +28,13 @@ Promotion moves individual items out of the log; `gori_recap` condenses the log 
 
 gori has no LLM, so it never summarizes on its own — you write the recap. The archive is non-destructive cold storage: the reading view never loads it (so it costs no tokens), and it is never auto-deleted. To recover the full history, read `note.archive.md` in the task's directory (`$GORI_HOME/tasks/<task-id>/note.archive.md`, default `~/.gori`). `gori_recap` is rejected on a closed task and when the note is empty (`NOTHING_TO_RECAP`).
 
+## Blocking and unblocking
+
+`gori_block "<reason>"` flags the active task as blocked on a decision neither side can make, recording the reason (shown in `gori_status` and `gori_list`). It is reversible and non-destructive: the task stays editable, so keep working toward the resolution, and `gori_unblock` returns it to in-progress once the decision is made.
+
+- Block is rejected on a closed task (`ALREADY_CLOSED` — reopen first) and on one already blocked (`ALREADY_BLOCKED`); unblock is rejected when the task is not blocked (`NOT_BLOCKED`).
+- `gori_reopen` is for closed tasks only. A blocked task resumes with `gori_unblock`, not reopen (reopen on a blocked task returns `ALREADY_BLOCKED`).
+
 ## Natural-language triggers (non-Claude-Code agents)
 
 Outside Claude Code, slash invocation may not exist. These phrasings map to the flow:
@@ -36,6 +43,7 @@ Outside Claude Code, slash invocation may not exist. These phrasings map to the 
 - "log that we renamed the endpoint" → `gori_log`
 - "ask the partner whether ..." → `gori_ask`
 - "what did the partner change?" → `gori_read`
+- "we're blocked on X, needs a call" → `gori_block`; "the call was made, resume" → `gori_unblock`
 
 ## Worked example
 

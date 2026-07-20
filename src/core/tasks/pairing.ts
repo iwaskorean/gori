@@ -89,12 +89,14 @@ export type AttachCandidate = {
   lastModifiedAt: string;
 };
 
-/** In-progress tasks whose pair-A or pair-B directory matches this cwd. */
+/** Active (in-progress or blocked) tasks whose pair-A or pair-B directory matches this cwd. */
 export const attachCandidates = async (
   ctx: Ctx,
 ): Promise<Result<{ candidates: AttachCandidate[] }>> => {
   const candidates = (await readAllMeta(ctx.goriHome))
-    .filter((m) => m.status === "in-progress")
+    // A blocked task is reattachable -- a side reconnects to resolve it, so it
+    // must surface here just like an in-progress one; only closed is excluded.
+    .filter((m) => m.status !== "closed")
     .map((m) => ({ meta: m, side: resolveSideByCwd(m, ctx.cwd) }))
     .filter((x): x is { meta: Meta; side: Side | "ambiguous" } => x.side !== null)
     .map(({ meta, side }) => ({

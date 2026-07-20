@@ -1,6 +1,6 @@
 {
   "name": "gori-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pairing bridge linking two AI coding sessions as symmetric peers on one shared task",
   "keywords": [
     "mcp",

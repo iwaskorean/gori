@@ -22,6 +22,7 @@ export type TaskSummary = {
   taskId: string;
   keyword: string;
   status: TaskStatus;
+  blockedReason: string | null;
   paired: boolean;
   lastModifiedBy: Side;
   lastModifiedAt: string;
@@ -29,11 +30,11 @@ export type TaskSummary = {
   openQuestionCounts: OpenQuestionCounts;
 };
 
-const statusRank = (s: TaskStatus): number => (s === "in-progress" ? 0 : 1);
+const STATUS_RANK: Record<TaskStatus, number> = { "in-progress": 0, blocked: 1, closed: 2 };
 
-// in-progress first, then closed; within each group most recently modified first.
+// in-progress first, then blocked, then closed; within each group most recently modified first.
 const byStatusThenRecency = (a: TaskSummary, b: TaskSummary): number =>
-  statusRank(a.status) - statusRank(b.status) || b.lastModifiedAt.localeCompare(a.lastModifiedAt);
+  STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.lastModifiedAt.localeCompare(a.lastModifiedAt);
 
 export const list = async (
   ctx: Ctx,
@@ -47,6 +48,7 @@ export const list = async (
       taskId: m.taskId,
       keyword: m.keyword,
       status: m.status,
+      blockedReason: m.blockedReason,
       paired: m.pairB.dir !== null,
       lastModifiedBy: m.lastModifiedBy,
       lastModifiedAt: m.lastModifiedAt,
@@ -63,6 +65,7 @@ export type ActiveStatus = {
   taskId: string;
   keyword: string;
   status: TaskStatus;
+  blockedReason: string | null;
   side: Side;
   paired: boolean;
   partnerModified: boolean;
@@ -91,6 +94,7 @@ export const status = async (
       taskId: meta.taskId,
       keyword: meta.keyword,
       status: meta.status,
+      blockedReason: meta.blockedReason,
       side: binding.side,
       paired: meta.pairB.dir !== null,
       partnerModified: meta.lastModifiedBy !== binding.side,
@@ -131,6 +135,7 @@ export const read = async (
     taskId: meta.taskId,
     keyword: meta.keyword,
     status: meta.status,
+    blockedReason: meta.blockedReason,
     side: binding.side,
     paired: meta.pairB.dir !== null,
     partnerModified: meta.lastModifiedBy !== binding.side,

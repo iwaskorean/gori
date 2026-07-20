@@ -37,6 +37,10 @@ Check `gori_status` and the `gori_link` candidate list FIRST. Only create when n
 
 `gori_close` marks the task closed for **both** sides. It is non-destructive and reopenable with `gori_reopen`. Suggest closing once both question queues are empty. If you close while the partner still has open questions, say so explicitly.
 
+## Blocking (escalation)
+
+When the two sides hit an impasse that needs a decision neither can make — a call from outside the pairing, e.g. the user or a product owner — `gori_block` with a short reason. It flags the task blocked and surfaces the reason in `gori_status` and `gori_list`, so the impasse is visible instead of stalling silently or finishing as if done. The task stays editable, so keep working on anything that does not depend on the decision. Once the call is made, `gori_unblock` resumes it.
+
 ## Talking about the other side
 
 Refer to it as the **partner session**.

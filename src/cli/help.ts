@@ -13,6 +13,8 @@ export const VERBS = [
   "status",
   "close",
   "reopen",
+  "block",
+  "unblock",
   "log",
   "recap",
   "scope",
@@ -33,7 +35,7 @@ type VerbHelp = {
 /** Categories in display order, matching the verb index in SPEC §3. */
 const CATEGORIES: ReadonlyArray<{ title: string; verbs: readonly Verb[] }> = [
   { title: "session / task", verbs: ["create", "link", "attach", "detach", "list", "status"] },
-  { title: "lifecycle", verbs: ["close", "reopen"] },
+  { title: "lifecycle", verbs: ["close", "reopen", "block", "unblock"] },
   { title: "note channel", verbs: ["log", "recap"] },
   { title: "spec channel", verbs: ["scope", "ask", "answer"] },
   { title: "reading / help", verbs: ["read", "help"] },
@@ -84,6 +86,18 @@ const HELP: Record<Verb, VerbHelp> = {
     signature: "gori reopen [<task-id|number>]",
     summary: "put a closed task back in progress",
     example: "gori reopen billing-webhook_20260518-143052",
+  },
+  block: {
+    signature: 'gori block "<reason>"',
+    summary:
+      "flag the active task as blocked on a decision neither side can make; " +
+      "the reason shows in status and list until you unblock",
+    example: 'gori block "id+email only vs product needs 3 profile fields — needs a schema call"',
+  },
+  unblock: {
+    signature: "gori unblock",
+    summary: "clear the block once the call has been made, resuming the task",
+    example: "gori unblock",
   },
   log: {
     signature: 'gori log "<message>"',

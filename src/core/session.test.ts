@@ -20,6 +20,7 @@ const meta = (a: string | null, b: string | null): Meta => ({
   pairA: { dir: a, joinedAt: null },
   pairB: { dir: b, joinedAt: null },
   status: "in-progress",
+  blockedReason: null,
   lastModifiedBy: "pair-A",
   lastModifiedAt: "",
 });

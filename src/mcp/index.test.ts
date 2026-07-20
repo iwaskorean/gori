@@ -47,7 +47,7 @@ afterEach(async () => {
 });
 
 describe("tool surface", () => {
-  it("exposes the 14 verbs (help is covered by the tool list itself)", async () => {
+  it("exposes the 16 verbs (help is covered by the tool list itself)", async () => {
     const a = await connectSession(home, "/work/api", "mcp-a");
     const { tools } = await a.client.listTools();
     const names = tools.map((t) => t.name).sort();
@@ -56,6 +56,7 @@ describe("tool surface", () => {
         "gori_answer",
         "gori_ask",
         "gori_attach",
+        "gori_block",
         "gori_close",
         "gori_create",
         "gori_detach",
@@ -67,6 +68,7 @@ describe("tool surface", () => {
         "gori_reopen",
         "gori_scope",
         "gori_status",
+        "gori_unblock",
       ].sort(),
     );
   });
@@ -199,6 +201,24 @@ describe("remaining tool wiring", () => {
     const view = await a.call("gori_read", { which: "log" });
     expect(view.text).toContain("settled the approach");
     expect(view.text).not.toContain("long-winded detail"); // archived, not loaded
+  });
+
+  it("blocks the task with a reason, surfaces it in status, then unblocks", async () => {
+    const a = await connectSession(home, "/work/api", "mcp-a");
+    await a.call("gori_create", { keyword: "profile" });
+
+    const blocked = await a.call("gori_block", { reason: "id+email only vs 3 required fields" });
+    expect(blocked.isError).toBe(false);
+    expect(blocked.text).toContain("blocked profile");
+
+    const status = await a.call("gori_status");
+    expect(status.text).toContain("blocked");
+    expect(status.text).toContain("id+email only vs 3 required fields");
+
+    const unblocked = await a.call("gori_unblock");
+    expect(unblocked.isError).toBe(false);
+    expect(unblocked.text).toContain("unblocked profile");
+    expect((await a.call("gori_status")).text).not.toContain("id+email only");
   });
 
   it("edits one scope sub-section through gori_scope section", async () => {

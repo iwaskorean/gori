@@ -6,6 +6,7 @@ import { readSession } from "../session.js";
 import {
   attach,
   attachCandidates,
+  block,
   close,
   create,
   detach,
@@ -76,6 +77,14 @@ describe("link (pairing)", () => {
     const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
     unwrap(await close(A, T2));
     expect(errorOf(await link(B, { taskId }, T3)).code).toBe("ALREADY_CLOSED");
+  });
+
+  it("excludes a blocked task from pairing candidates", async () => {
+    unwrap(await create(A, { keyword: "blocked-one" }, T1));
+    unwrap(await block(A, { reason: "needs a call" }, T2));
+    const open = unwrap(await create(A, { keyword: "open-one", force: true }, T3));
+    const ids = unwrap(await linkCandidates(C)).candidates.map((c) => c.taskId);
+    expect(ids).toEqual([open.taskId]); // the blocked task is not offered for pairing
   });
 
   it("rejects pairing with a task this session started", async () => {
@@ -172,6 +181,16 @@ describe("attach (reconnect / switch tasks)", () => {
 
     // a directory registered to neither side sees nothing
     expect(unwrap(await attachCandidates(C)).candidates).toEqual([]);
+  });
+
+  it("surfaces a blocked task as an attach candidate and attaches to it", async () => {
+    // A blocked task is reattachable — a side reconnects to resolve it — so it
+    // must appear here and attach must accept it (only closed is rejected).
+    const { taskId } = unwrap(await create(A, { keyword: "shared" }, T1));
+    unwrap(await block(A, { reason: "needs a call" }, T2));
+    const probe = ctxOf(home, "/work/api", "keyProbe");
+    expect(unwrap(await attachCandidates(probe)).candidates.map((c) => c.taskId)).toEqual([taskId]);
+    expect(unwrap(await attach(probe, { taskId })).side).toBe("pair-A");
   });
 
   it("marks a candidate ambiguous when both sides share the cwd", async () => {

@@ -49,7 +49,9 @@ export const create = async (
   // another task here deliberately.
   if (!input.force) {
     const openHere = (await readAllMeta(ctx.goriHome)).filter(
-      (m) => m.status === "in-progress" && resolveSideByCwd(m, ctx.cwd) !== null,
+      // A blocked task still occupies this directory, so it must count here too --
+      // otherwise a session whose task got blocked would silently create a duplicate.
+      (m) => m.status !== "closed" && resolveSideByCwd(m, ctx.cwd) !== null,
     );
     if (openHere.length > 0) {
       const ids = openHere.map((m) => m.taskId).join(", ");
@@ -71,6 +73,7 @@ export const create = async (
     pairA: { dir: ctx.cwd, joinedAt: at },
     pairB: { dir: null, joinedAt: null },
     status: "in-progress",
+    blockedReason: null,
     lastModifiedBy: "pair-A",
     lastModifiedAt: at,
   };
@@ -102,8 +105,10 @@ export const close = async (
       return err("ALREADY_CLOSED", "task is already closed");
     }
     await writeMeta(ctx.goriHome, {
+      // Closing resolves any block; clear the reason to keep the invariant.
       ...markModified(meta, binding.side, formatDisplay(now)),
       status: "closed",
+      blockedReason: null,
     });
     return ok({ taskId: meta.taskId, keyword: meta.keyword });
   });
@@ -132,6 +137,11 @@ export const reopen = async (
       if (meta.status === "in-progress") {
         return err("ALREADY_OPEN", "task is already in progress");
       }
+      // reopen is closed-only; a blocked task resumes via unblock. ALREADY_BLOCKED
+      // (not ALREADY_OPEN) tells a code-branching caller the task is stuck.
+      if (meta.status === "blocked") {
+        return err("ALREADY_BLOCKED", "task is blocked, not closed — use unblock to resume it");
+      }
       // Attribute the change to this session only when it is bound to the task;
       // an unbound reopener leaves the last-modified side untouched.
       const reopenerSide: Side | null =
@@ -147,4 +157,58 @@ export const reopen = async (
       });
     },
   );
+};
+
+// ---------- block / unblock (lifecycle) ----------
+
+/** Collapse whitespace so a reason stays a single line in meta.yml and status. */
+const flattenReason = (text: string): string => text.replace(/\s+/g, " ").trim();
+
+/**
+ * Flag the active task as blocked on a decision neither side can make, recording
+ * why. Reversible via unblock, and the task stays mutable so work can continue.
+ */
+export const block = async (
+  ctx: Ctx,
+  input: { reason: string },
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string; keyword: string }>> => {
+  const reason = flattenReason(input.reason);
+  if (!reason) return err("INVALID_INPUT", "a reason is required to block");
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to block");
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    if (meta.status === "closed") {
+      return err("ALREADY_CLOSED", "task is closed; reopen it first");
+    }
+    if (meta.status === "blocked") {
+      return err("ALREADY_BLOCKED", "task is already blocked");
+    }
+    await writeMeta(ctx.goriHome, {
+      ...markModified(meta, binding.side, formatDisplay(now)),
+      status: "blocked",
+      blockedReason: reason,
+    });
+    return ok({ taskId: meta.taskId, keyword: meta.keyword });
+  });
+};
+
+/** Clear a block once the deciding call has been made, returning the task to in-progress. */
+export const unblock = async (
+  ctx: Ctx,
+  now: Date = new Date(),
+): Promise<Result<{ taskId: string; keyword: string }>> => {
+  const binding = await readSession(ctx.goriHome, ctx.sessionKey);
+  if (!binding) return err("NO_ACTIVE_TASK", "no active task to unblock");
+  return withExistingTask(ctx.goriHome, binding.taskId, ACTIVE_TASK_GONE, async (meta) => {
+    if (meta.status !== "blocked") {
+      return err("NOT_BLOCKED", "task is not blocked");
+    }
+    await writeMeta(ctx.goriHome, {
+      ...markModified(meta, binding.side, formatDisplay(now)),
+      status: "in-progress",
+      blockedReason: null,
+    });
+    return ok({ taskId: meta.taskId, keyword: meta.keyword });
+  });
 };

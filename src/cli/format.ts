@@ -123,6 +123,9 @@ export const formatList = (tasks: TaskSummary[]): string => {
       `  ${i + 1}. ${marker}${t.keyword}${badge}   ${t.status} · ${pairing}`,
       subItem(labeled("last", `${t.lastModifiedBy} ${t.lastModifiedAt}`)),
     ];
+    if (t.status === "blocked" && t.blockedReason) {
+      lines.push(subItem(labeled("blocked", t.blockedReason)));
+    }
     if (pairA + pairB > 0) {
       lines.push(subItem(labeled("open", `pair-A ${pairA} · pair-B ${pairB}`)));
     }
@@ -172,6 +175,9 @@ export const formatStatus = (
     return lines.join("\n");
   }
   const lines = [summaryLine(active)];
+  if (active.status === "blocked" && active.blockedReason) {
+    lines.push(detail(`${WARN} blocked: ${active.blockedReason}`));
+  }
   if (active.partnerModified) {
     lines.push(detail(`${PARTNER_CHANGED} · ${NEXT} read to catch up`));
   }
@@ -202,6 +208,16 @@ export const formatReopen = (data: {
   lines.push(detail(labeled("id", data.taskId)));
   return lines.join("\n");
 };
+
+export const formatBlock = (data: { taskId: string; keyword: string }): string =>
+  [
+    `${WARN} blocked ${data.keyword}`,
+    detail(`${NEXT} needs a decision from outside the pairing — unblock to resume`),
+    detail(labeled("id", data.taskId)),
+  ].join("\n");
+
+export const formatUnblock = (data: { taskId: string; keyword: string }): string =>
+  [`${DONE} unblocked ${data.keyword}`, detail(labeled("id", data.taskId))].join("\n");
 
 // ---------- channels ----------
 
@@ -255,6 +271,9 @@ const indentContinuation = (text: string): string => {
 /** Assemble the reading view: summary, turn alert, spec before note, answer hints. */
 export const formatRead = (view: ReadView, which?: "log" | "spec"): string => {
   const lines = [summaryLine(view.summary)];
+  if (view.summary.status === "blocked" && view.summary.blockedReason) {
+    lines.push(detail(`${WARN} blocked: ${view.summary.blockedReason}`));
+  }
   if (view.summary.partnerModified) lines.push(detail(PARTNER_CHANGED));
 
   if (which !== "log") {

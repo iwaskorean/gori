@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readMeta, writeMeta } from "../store.js";
 import { readSession, sessionFilePath, writeSession } from "../session.js";
-import { ask, create, link, list, log, read, scope, status } from "./index.js";
+import { ask, block, close, create, link, list, log, read, scope, status } from "./index.js";
 import type { Ctx, Meta } from "../types.js";
 import { ctxOf, errorOf, freshTaskEnv, unwrap, T1, T2, T3 } from "./test-helpers.js";
 
@@ -32,6 +32,7 @@ describe("list", () => {
       pairA: { dir: "/work/api", joinedAt: "2026-01-01 10:10:00" },
       pairB: { dir: null, joinedAt: null },
       status: "closed",
+      blockedReason: null,
       lastModifiedBy: "pair-A",
       lastModifiedAt: "2026-01-01 10:10:00",
     };
@@ -82,9 +83,29 @@ describe("list", () => {
   });
 });
 
+describe("list ordering with blocked", () => {
+  it("orders in-progress, then blocked, then closed", async () => {
+    unwrap(await create(A, { keyword: "open" }, T1));
+    unwrap(await create(A, { keyword: "stuck", force: true }, T2));
+    unwrap(await block(A, { reason: "needs a call" }, T2));
+    unwrap(await create(A, { keyword: "done", force: true }, T3));
+    unwrap(await close(A, T3));
+    const { tasks } = unwrap(await list(A, T3));
+    expect(tasks.map((t) => t.status)).toEqual(["in-progress", "blocked", "closed"]);
+  });
+});
+
 describe("status", () => {
   it("returns null when there is no active task", async () => {
     expect(unwrap(await status(A, T1)).active).toBeNull();
+  });
+
+  it("surfaces the blocked reason on the active status", async () => {
+    unwrap(await create(A, { keyword: "shared" }, T1));
+    unwrap(await block(A, { reason: "needs a schema call" }, T2));
+    const active = unwrap(await status(A, T3)).active;
+    expect(active?.status).toBe("blocked");
+    expect(active?.blockedReason).toBe("needs a schema call");
   });
 
   it("flags partner activity by comparing last-modified side", async () => {

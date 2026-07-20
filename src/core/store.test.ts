@@ -28,6 +28,7 @@ const baseMeta: Meta = {
   pairA: { dir: "/Users/x/api", joinedAt: "2026-05-18 14:30:52" },
   pairB: { dir: null, joinedAt: null },
   status: "in-progress",
+  blockedReason: null,
   lastModifiedBy: "pair-A",
   lastModifiedAt: "2026-05-18 14:30:52",
 };
@@ -104,6 +105,17 @@ describe("formatStamp / buildTaskId", () => {
 describe("meta YAML round-trip", () => {
   it("metaToYaml then metaFromYaml is identity", () => {
     expect(metaFromYaml(metaToYaml(baseMeta))).toEqual(baseMeta);
+  });
+  it("round-trips a blocked task with its reason", () => {
+    const blocked: Meta = { ...baseMeta, status: "blocked", blockedReason: "needs a schema call" };
+    expect(metaFromYaml(metaToYaml(blocked))).toEqual(blocked);
+  });
+  it("reads a meta.yml written before blocked-reason existed as null", () => {
+    // A stored file that predates the field has no blocked-reason key; it must
+    // load as null rather than undefined so the Meta shape stays intact.
+    const legacy = metaToYaml(baseMeta).replace(/^blocked-reason:.*\n/m, "");
+    expect(legacy).not.toContain("blocked-reason");
+    expect(metaFromYaml(legacy).blockedReason).toBeNull();
   });
   it("serializes with kebab-case keys on disk", () => {
     const y = metaToYaml(baseMeta);

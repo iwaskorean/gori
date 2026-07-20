@@ -72,6 +72,29 @@ describe("two-session end-to-end flow", () => {
   });
 });
 
+describe("block / unblock", () => {
+  it("blocks with a reason shown in status, then unblocks", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    expect(await a.run(["create", "profile"])).toBe(0);
+
+    expect(await a.run(["block", "id+email only vs 3 required fields"])).toBe(0);
+    expect(a.lastOut()).toContain("blocked profile");
+
+    expect(await a.run(["status"])).toBe(0);
+    expect(a.lastOut()).toContain("id+email only vs 3 required fields");
+
+    expect(await a.run(["unblock"])).toBe(0);
+    expect(a.lastOut()).toContain("unblocked profile");
+  });
+
+  it("routes a missing reason to stderr with exit 1", async () => {
+    const a = makeSession(home, "/work/api", "keyA");
+    await a.run(["create", "x"]);
+    expect(await a.run(["block"])).toBe(1);
+    expect(a.err.join("\n")).toContain("reason is required");
+  });
+});
+
 describe("interactive selection", () => {
   it("links by explicit number without a prompt", async () => {
     const a = makeSession(home, "/work/api", "keyA");
